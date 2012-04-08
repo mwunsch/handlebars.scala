@@ -5,26 +5,27 @@ import scala.util.parsing.input.{Positional}
 
 object Handlebars {
 
-  def parse(template: String) = {
-    val grammar = new HandlebarsGrammar
+  def parse(template: String, delimiters: (String, String) = ("{{", "}}")) = {
+    val grammar = new HandlebarsGrammar(delimiters)
     grammar.parseAll(grammar.root, template)
   }
 
 }
 
-class HandlebarsGrammar extends JavaTokenParsers {
+class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
   def root = rep(mustache | text)
 
   def mustache = expression(opt(whiteSpace) ~> ident <~ opt(whiteSpace) ^^ { Mustache(_) })
 
-  def expression[T <: Node](parser: Parser[T]) = positioned(openStache ~> parser <~ closeStache)
+  def text = rep1(not(openDelimiter) ~> ".|\r|\n".r) ^^ {t => Text(t.mkString("")) }
 
-  def text = rep1(not(openStache) ~> ".|\r|\n".r) ^^ {t => Text(t.mkString("")) }
+  def expression[T <: Node](parser: Parser[T]) =
+      positioned(openDelimiter ~> parser <~ closeDelimiter)
 
-  def openStache = "{{"
+  def openDelimiter = delimiters._1
 
-  def closeStache = "}}"
+  def closeDelimiter = delimiters._2
 
   override def skipWhitespace = false
 
