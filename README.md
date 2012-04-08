@@ -1,4 +1,4 @@
-A Scala implementation of Handlebars, an extension to and superset of the Mustache templating language.
+A Scala implementation of [Handlebars](http://handlebarsjs.com/), an extension to and superset of the Mustache templating language.
 
 I'm thinking it should work something like this:
 
