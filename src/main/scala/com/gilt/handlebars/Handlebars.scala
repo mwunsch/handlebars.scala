@@ -16,12 +16,20 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
   def root = rep(mustache | text)
 
-  def mustache = expression(opt(whiteSpace) ~> ident <~ opt(whiteSpace) ^^ { Mustache(_) })
+  def mustache = unescapedVariable | variable
+
+  def unescapedVariable =
+      expression("{" ~> identifier <~ "}" ^^ { Variable(_, true) }) |
+      expression("&" ~> identifier ^^ { Variable(_, true)})
+
+  def variable = expression(identifier ^^ { Variable(_) })
 
   def text = rep1(not(openDelimiter) ~> ".|\r|\n".r) ^^ {t => Text(t.mkString("")) }
 
   def expression[T <: Node](parser: Parser[T]) =
       positioned(openDelimiter ~> parser <~ closeDelimiter)
+
+  def identifier = opt(whiteSpace) ~> ident <~ opt(whiteSpace)
 
   def openDelimiter = delimiters._1
 
@@ -33,6 +41,6 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
 sealed abstract class Node extends Positional
 
-case class Mustache(value: String) extends Node
+case class Variable(value: String, unescape: Boolean = false) extends Node
 
 case class Text(value: String) extends Node
