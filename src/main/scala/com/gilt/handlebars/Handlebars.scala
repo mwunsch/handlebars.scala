@@ -19,16 +19,15 @@ class HandlebarsGrammar(delimiters: (String, String) = ("{{", "}}")) extends Jav
   def statement = mustache | unescapedMustache
 
   def unescapedMustache =
-      mustachify("{" ~> pad(identifier) <~ "}" ^^ {Mustache(_, escaped=false)}) |
-      mustachify("&" ~> pad(identifier) ^^ {Mustache(_, escaped=false)})
+      mustachify("{" ~> pad(path) <~ "}" ^^ {Mustache(_, escaped=false)}) |
+      mustachify("&" ~> pad(path) ^^ {Mustache(_, escaped=false)})
 
-  def mustache = mustachify(identifier ^^ {Mustache(_)}) |
-      mustachify(helperCall ^^ { case id ~ list => Mustache(id, list) })
+  def mustache = mustachify(path ^^ {Mustache(_)}) |
+      mustachify(helper ^^ { case id ~ list => Mustache(id, list) })
 
-  def helperCall = identifier ~ rep1(rep(whiteSpace) ~> identifier)
+  def helper = identifier ~ rep1(rep1(whiteSpace) ~> path)
 
-  // TODO: This causes a stack overflow
-  def path: Parser[Node] = (path <~ "/") ~ identifier ^^ {case a ~ b => Path(Pair(a,b))} | identifier
+  def path: Parser[Node] = rep1sep(identifier, "/") ^^ {Path(_)}
 
   def identifier = (higherLevelPath | currentPath | ident) ^^ {Identifier(_)}
 
@@ -55,7 +54,7 @@ sealed abstract class Node extends Positional
 
 case class Identifier(value: String) extends Node
 
-case class Path(value: (Node, Node)) extends Node
+case class Path(value: List[Node]) extends Node
 
 case class Mustache(value: Node,
     parameters: List[Node] = List.empty,
