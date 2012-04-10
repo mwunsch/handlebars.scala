@@ -14,21 +14,31 @@ object Handlebars {
 
 class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
-  def root = rep(mustache)
+  def root = rep(statement)
+
+  def statement = mustache | unescapedMustache
+
+  def unescapedMustache =
+      mustachify("{" ~> pad(identifier) <~ "}" ^^ {Mustache(_, escaped=false)}) |
+      mustachify("&" ~> pad(identifier) ^^ {Mustache(_, escaped=false)})
 
   def mustache = mustachify(identifier ^^ {Mustache(_)}) |
-      mustachify(identifier ~ rep1(rep(whiteSpace) ~> identifier) ^^ {
-        case id ~ list => Mustache(id, list)
-      })
+      mustachify(helperCall ^^ { case id ~ list => Mustache(id, list) })
+
+  def helperCall = identifier ~ rep1(rep(whiteSpace) ~> identifier)
 
   def identifier = ident ^^ {Identifier(_)}
+
+  def padding = opt(whiteSpace)
 
   def openDelimiter = delimiters._1
 
   def closeDelimiter = delimiters._2
 
   def mustachify[T <: Node](parser: Parser[T]) =
-      positioned(openDelimiter ~> opt(whiteSpace) ~> parser <~ opt(whiteSpace) <~ closeDelimiter)
+      positioned(openDelimiter ~> padding ~> parser <~ padding <~ closeDelimiter)
+
+  def pad(id: Parser[Identifier]) = padding ~> id <~ padding
 
   override def skipWhitespace = false
 
