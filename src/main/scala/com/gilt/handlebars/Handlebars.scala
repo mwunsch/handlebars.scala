@@ -14,31 +14,21 @@ object Handlebars {
 
 class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
-  def root = rep(mustache | text)
+  def root = rep(mustache)
 
-  def mustache = helper | unescapedVariable | variable
+  def mustache = mustachify(identifier ^^ {Mustache(_)}) |
+      mustachify(identifier ~ rep1(rep(whiteSpace) ~> identifier) ^^ {
+        case id ~ list => Mustache(id, list)
+      })
 
-  def helper = expression(identifier ~ rep1(whiteSpace ~> identifier) ^^ {
-    case a ~ b => Helper((a, b))
-  }) // Always fails?
-
-  def unescapedVariable =
-      expression("{" ~> identifier <~ "}" ^^ { Variable(_, true) }) |
-      expression("&" ~> identifier ^^ { Variable(_, true)})
-
-
-  def variable = expression(identifier ^^ { Variable(_) })
-
-  def text = rep1(not(openDelimiter) ~> ".|\r|\n".r) ^^ {t => Text(t.mkString("")) }
-
-  def expression[T <: Node](parser: Parser[T]) =
-      positioned(openDelimiter ~> parser <~ closeDelimiter)
-
-  def identifier = opt(whiteSpace) ~> ident <~ opt(whiteSpace)
+  def identifier = ident ^^ {Identifier(_)}
 
   def openDelimiter = delimiters._1
 
   def closeDelimiter = delimiters._2
+
+  def mustachify[T <: Node](parser: Parser[T]) =
+      positioned(openDelimiter ~> opt(whiteSpace) ~> parser <~ opt(whiteSpace) <~ closeDelimiter)
 
   override def skipWhitespace = false
 
@@ -46,8 +36,8 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
 sealed abstract class Node extends Positional
 
-case class Helper(value: (String, Seq[String])) extends Node
+case class Identifier(value: String) extends Node
 
-case class Variable(value: String, unescape: Boolean = false) extends Node
-
-case class Text(value: String) extends Node
+case class Mustache(value: Identifier,
+    parameters: List[Identifier] = List.empty,
+    escaped: Boolean = true) extends Node
