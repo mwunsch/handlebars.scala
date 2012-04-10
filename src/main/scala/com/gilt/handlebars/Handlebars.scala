@@ -12,7 +12,7 @@ object Handlebars {
 
 }
 
-class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
+class HandlebarsGrammar(delimiters: (String, String) = ("{{", "}}")) extends JavaTokenParsers {
 
   def root = rep(statement)
 
@@ -27,18 +27,25 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
   def helperCall = identifier ~ rep1(rep(whiteSpace) ~> identifier)
 
-  def identifier = ident ^^ {Identifier(_)}
+  // TODO: This causes a stack overflow
+  def path: Parser[Node] = (path <~ "/") ~ identifier ^^ {case a ~ b => Path(Pair(a,b))} | identifier
+
+  def identifier = (higherLevelPath | currentPath | ident) ^^ {Identifier(_)}
 
   def padding = opt(whiteSpace)
+
+  def higherLevelPath = """\.\.""".r
+
+  def currentPath = """\.""".r
 
   def openDelimiter = delimiters._1
 
   def closeDelimiter = delimiters._2
 
   def mustachify[T <: Node](parser: Parser[T]) =
-      positioned(openDelimiter ~> padding ~> parser <~ padding <~ closeDelimiter)
+      positioned(openDelimiter ~> pad(parser) <~ closeDelimiter)
 
-  def pad(id: Parser[Identifier]) = padding ~> id <~ padding
+  def pad(id: Parser[Node]) = padding ~> id <~ padding
 
   override def skipWhitespace = false
 
@@ -48,6 +55,8 @@ sealed abstract class Node extends Positional
 
 case class Identifier(value: String) extends Node
 
-case class Mustache(value: Identifier,
-    parameters: List[Identifier] = List.empty,
+case class Path(value: (Node, Node)) extends Node
+
+case class Mustache(value: Node,
+    parameters: List[Node] = List.empty,
     escaped: Boolean = true) extends Node

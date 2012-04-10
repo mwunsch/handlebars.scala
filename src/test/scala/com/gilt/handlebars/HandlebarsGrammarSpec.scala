@@ -29,5 +29,9 @@ class HandlebarsGrammarSpec extends Specification with ParserMatchers {
       parsers.root("{{& foo}}") must haveSuccessResult(""".*foo.*,.*false.*""")
     }
 
+    "parses a mustache with a path" in {
+      parsers.root("{{foo/bar}}") must haveSuccessResult(""".*foo.*,.*false.*""")
+    }
+
   }
 }
