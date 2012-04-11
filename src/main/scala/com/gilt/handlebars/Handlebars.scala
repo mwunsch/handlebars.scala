@@ -18,9 +18,11 @@ class HandlebarsGrammar(delimiters: (String, String) = ("{{", "}}")) extends Jav
 
   def content = rep1(not(openDelimiter | closeDelimiter) ~> ".|\r|\n".r) ^^ {t => Content(t.mkString(""))}
 
-  def statement = mustache | unescapedMustache | comment
+  def statement = mustache | unescapedMustache | comment | partial
 
-  def comment: Parser[Comment] = mustachify("!" ~> content ^^ {t => Comment(t.value)})
+  def partial = mustachify(">" ~> pad(identifier) ^^ {Partial(_)})
+
+  def comment = mustachify("!" ~> content ^^ {t => Comment(t.value)})
 
   def unescapedMustache =
       mustachify("{" ~> pad(path) <~ "}" ^^ {Mustache(_, escaped=false)}) |
@@ -61,6 +63,8 @@ case class Path(value: List[Node]) extends Node
 case class Content(value: String) extends Node
 
 case class Comment(value: String) extends Node
+
+case class Partial(value: Node) extends Node
 
 case class Mustache(value: Node,
     parameters: List[Node] = List.empty,
