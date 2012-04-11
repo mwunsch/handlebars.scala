@@ -58,6 +58,18 @@ class HandlebarsGrammarSpec extends Specification with ParserMatchers {
       parsers.root("{{> foo }}") must haveSuccessResult("Partial")
     }
 
+    "parse a section" in {
+      parsers.root("{{#foo}} bar {{/foo}}") must haveSuccessResult("Section")
+    }
+
+    "parse an inverse section" in {
+      parsers.root("{{^foo}} bar {{/foo}}") must haveSuccessResult("Section")
+    }
+
+    "parse a nested section" in {
+      parsers.root("{{#foo}} bar {{#baz}} nested! {{/baz}} bar {{/foo}}") must beASuccess
+    }
+
 
   }
 }
