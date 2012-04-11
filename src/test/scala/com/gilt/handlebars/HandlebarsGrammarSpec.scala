@@ -21,16 +21,36 @@ class HandlebarsGrammarSpec extends Specification with ParserMatchers {
       parsers.root("{{foo bar}}") must haveSuccessResult("""Mustache\(.*foo.*,.*bar.*\)""")
     }
 
-    "parses an unescaped mustache" in {
+    "parse an unescaped mustache" in {
       parsers.root("{{{foo}}}") must haveSuccessResult(""".*foo.*,.*false.*""")
     }
 
-    "parses an unescaped mustache with the ampersand" in {
+    "parse an unescaped mustache with the ampersand" in {
       parsers.root("{{& foo}}") must haveSuccessResult(""".*foo.*,.*false.*""")
     }
 
-    "parses a mustache with a path" in {
+    "parse a mustache with a path" in {
       parsers.root("{{foo/bar}}") must haveSuccessResult(""".*foo.*,.*bar.*""")
+    }
+
+    "parse a mustache with a dot to narrow the context" in {
+      parsers.root("{{foo.bar}}") must haveSuccessResult(""".*foo.*,.*bar.*""")
+    }
+
+    "parse a mustache with two dots to specify the higher level context" in {
+      parsers.root("{{../foo}}") must haveSuccessResult(""".*\.\..*foo.*""")
+    }
+
+    "parse contents followed by a mustache" in {
+      parsers.root("foo bar {{baz}}") must beASuccess
+    }
+
+    "parse a comment" in {
+      parsers.root("{{! this is a comment }}") must haveSuccessResult("Comment.*comment")
+    }
+
+    "parse a multi-line comment" in {
+      parsers.root("{{!\nthis is a multi-line comment\n}}") must beASuccess
     }
 
   }
