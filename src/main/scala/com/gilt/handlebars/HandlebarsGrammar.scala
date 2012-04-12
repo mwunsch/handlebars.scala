@@ -3,16 +3,31 @@ package com.gilt.handlebars
 import scala.util.parsing.combinator._
 import scala.util.parsing.input.{Positional}
 
+sealed abstract class Node extends Positional
+
+case class Content(value: String) extends Node
+case class Identifier(value: String) extends Node
+case class Path(value: List[Identifier]) extends Node {
+  def head: Identifier = value.head
+}
+case class Comment(value: String) extends Node
+case class Partial(value: Node) extends Node
+case class Mustache(value: Path,
+    parameters: List[Path] = List.empty,
+    escaped: Boolean = true) extends Node
+case class Section(name: Path, value: Program, inverted: Boolean = false) extends Node
+case class Program(value: List[Node]) extends Node
+
 class HandlebarsGrammar(delimiters: (String, String) = ("{{", "}}")) extends JavaTokenParsers {
 
   def root: Parser[Program] = rep(content | statement) ^^ {Program(_)}
+
+  def statement = mustache | unescapedMustache | section | inverseSection | comment | partial
 
   def content =
       positioned(rep1(not(openDelimiter | closeDelimiter) ~> ".|\r|\n".r) ^^ {
         t => Content(t.mkString(""))
       })
-
-  def statement = mustache | unescapedMustache | section | inverseSection | comment | partial
 
   def inverseSection = positioned(blockify("^") ^^ {
     case (name,body) => Section(name, body, inverted=true)
@@ -30,8 +45,6 @@ class HandlebarsGrammar(delimiters: (String, String) = ("{{", "}}")) extends Jav
 
   def mustache = mustachify(pad(mustachable))
 
-  /* --- */
-
   def mustachable = helper ^^ { case id ~ list => Mustache(id, list) } | path ^^ {Mustache(_)}
 
   def helper = path ~ rep1(rep1(whiteSpace) ~> path)
@@ -40,11 +53,10 @@ class HandlebarsGrammar(delimiters: (String, String) = ("{{", "}}")) extends Jav
 
   def identifier = (".." | ident) ^^ {Identifier(_)}
 
-  // TODO: need to pad() the identity in the closing block
-  def blockify(prefix: String) = openDelimiter ~> prefix ~> pad(mustachable) <~ closeDelimiter >> {
+  def blockify(prefix: String) = mustachify(prefix ~> pad(mustachable)) >> {
     case (identity: Mustache) => {
       val path: Path = identity.value
-      pad(root) <~ openDelimiter <~ "/" <~ path.head.value <~ closeDelimiter ^^ { body =>
+      pad(root) <~ openDelimiter <~ "/"<~ pad(path.head.value) <~ closeDelimiter ^^ { body =>
         (path, body)
       }
     }
@@ -53,7 +65,7 @@ class HandlebarsGrammar(delimiters: (String, String) = ("{{", "}}")) extends Jav
   def mustachify[T <: Node](parser: Parser[T]): Parser[T] =
       positioned(openDelimiter ~> parser <~ closeDelimiter)
 
-  def pad[T <: Node](id: Parser[T]): Parser[T] = padding ~> id <~ padding
+  def pad[T](id: Parser[T]): Parser[T] = padding ~> id <~ padding
 
   def padding = opt(whiteSpace)
 
@@ -65,24 +77,4 @@ class HandlebarsGrammar(delimiters: (String, String) = ("{{", "}}")) extends Jav
 
 }
 
-sealed abstract class Node extends Positional
 
-case class Identifier(value: String) extends Node
-
-case class Path(value: List[Identifier]) extends Node {
-  def head: Identifier = value.head
-}
-
-case class Content(value: String) extends Node
-
-case class Comment(value: String) extends Node
-
-case class Partial(value: Node) extends Node
-
-case class Section(name: Path, value: Program, inverted: Boolean = false) extends Node
-
-case class Program(value: List[Node]) extends Node
-
-case class Mustache(value: Path,
-    parameters: List[Path] = List.empty,
-    escaped: Boolean = true) extends Node
