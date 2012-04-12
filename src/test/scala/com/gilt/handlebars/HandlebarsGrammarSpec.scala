@@ -70,6 +70,18 @@ class HandlebarsGrammarSpec extends Specification with ParserMatchers {
       parsers.root("{{#foo}} bar {{#baz}} nested! {{/baz}} bar {{/foo}}") must beASuccess
     }
 
+    "fail on a broken mustache" in {
+      parsers.root("{{foo}") must beAFailure
+    }
+
+    "fail when a section does not close correctly" in {
+      parsers.root("{{#hello}} some text {{/goodbye}}") must beAFailure
+    }
+
+    "report line numbers in failures" in {
+      parsers.root("hello\nmy\n{{foo}") must haveFailureMsg("^[3")
+    }
+
 
   }
 }

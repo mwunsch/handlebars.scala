@@ -14,15 +14,20 @@ object Handlebars {
 
 class HandlebarsGrammar(delimiters: (String, String) = ("{{", "}}")) extends JavaTokenParsers {
 
-  def root: Parser[List[Node]] = rep(content | statement)
+  def root: Parser[Program] = rep(content | statement) ^^ {Program(_)}
 
-  def content = rep1(not(openDelimiter | closeDelimiter) ~> ".|\r|\n".r) ^^ {t => Content(t.mkString(""))}
+  def content =
+      positioned(rep1(not(openDelimiter | closeDelimiter) ~> ".|\r|\n".r) ^^ {
+        t => Content(t.mkString(""))
+      })
 
   def statement = mustache | unescapedMustache | section | inverseSection | comment | partial
 
-  def inverseSection = blockify("^") ^^ {case (name,body) => Section(name, body, inverted=true)}
+  def inverseSection = positioned(blockify("^") ^^ {
+    case (name,body) => Section(name, body, inverted=true)
+  })
 
-  def section = blockify("#") ^^ {case (name, body) => Section(name, body)}
+  def section = positioned(blockify("#") ^^ {case (name, body) => Section(name, body)})
 
   def partial = mustachify(">" ~> pad(identifier) ^^ {Partial(_)})
 
@@ -38,18 +43,18 @@ class HandlebarsGrammar(delimiters: (String, String) = ("{{", "}}")) extends Jav
 
   def mustachable = helper ^^ { case id ~ list => Mustache(id, list) } | path ^^ {Mustache(_)}
 
-  def helper = identifier ~ rep1(rep1(whiteSpace) ~> path)
+  def helper = path ~ rep1(rep1(whiteSpace) ~> path)
 
   def path = rep1sep(identifier, "/" | ".") ^^ {Path(_)}
 
   def identifier = (".." | ident) ^^ {Identifier(_)}
 
-  // TODO: rather than a path this should be a mustachable
   // TODO: need to pad() the identity in the closing block
-  def blockify(prefix: String) = openDelimiter ~> prefix ~ pad(path) <~ closeDelimiter >> {
-    case operation ~ identity => {
-      root <~ openDelimiter <~ "/" <~ identity.value.head.value <~ closeDelimiter ^^ { body =>
-        (identity, body)
+  def blockify(prefix: String) = openDelimiter ~> prefix ~> pad(mustachable) <~ closeDelimiter >> {
+    case (identity: Mustache) => {
+      val path: Path = identity.value
+      pad(root) <~ openDelimiter <~ "/" <~ path.head.value <~ closeDelimiter ^^ { body =>
+        (path, body)
       }
     }
   }
@@ -73,7 +78,9 @@ sealed abstract class Node extends Positional
 
 case class Identifier(value: String) extends Node
 
-case class Path(value: List[Identifier]) extends Node
+case class Path(value: List[Identifier]) extends Node {
+  def head: Identifier = value.head
+}
 
 case class Content(value: String) extends Node
 
@@ -81,8 +88,10 @@ case class Comment(value: String) extends Node
 
 case class Partial(value: Node) extends Node
 
-case class Section(name: Path, value: List[Node], inverted: Boolean = false) extends Node
+case class Section(name: Path, value: Program, inverted: Boolean = false) extends Node
 
-case class Mustache(value: Node,
+case class Program(value: List[Node]) extends Node
+
+case class Mustache(value: Path,
     parameters: List[Path] = List.empty,
     escaped: Boolean = true) extends Node
