@@ -18,7 +18,15 @@ case class Mustache(value: Path,
 case class Section(name: Path, value: Program, inverted: Boolean = false) extends Node
 case class Program(value: List[Node]) extends Node
 
-class HandlebarsGrammar(delimiters: (String, String) = ("{{", "}}")) extends JavaTokenParsers {
+object HandlebarsGrammar {
+  def apply(delimiters: (String,String) = ("{{","}}")) = new HandlebarsGrammar(delimiters)
+}
+
+class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
+
+  def scan(in: String) = {
+    parseAll(root, in)
+  }
 
   def root: Parser[Program] = rep(content | statement) ^^ {Program(_)}
 

@@ -6,7 +6,7 @@ import com.gilt.handlebars._
 
 class HandlebarsGrammarSpec extends Specification with ParserMatchers {
 
-  val parsers = new HandlebarsGrammar(("{{","}}"))
+  val parsers = HandlebarsGrammar(("{{","}}"))
 
   "The Handlebars root grammar" should {
 
