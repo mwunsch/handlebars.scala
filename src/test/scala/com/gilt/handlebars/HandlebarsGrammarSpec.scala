@@ -9,7 +9,6 @@ class HandlebarsGrammarSpec extends Specification with ParserMatchers {
   val parsers = HandlebarsGrammar(("{{","}}"))
 
   "The Handlebars root grammar" should {
-
     "parse simple mustaches" in {
       parsers.root("{{foo}}") must haveSuccessResult("""Mustache\(.*foo\)""")
     }
@@ -81,7 +80,6 @@ class HandlebarsGrammarSpec extends Specification with ParserMatchers {
     "report line numbers in failures" in {
       parsers.root("hello\nmy\n{{foo}") must haveFailureMsg("^[3")
     }
-
-
   }
+
 }

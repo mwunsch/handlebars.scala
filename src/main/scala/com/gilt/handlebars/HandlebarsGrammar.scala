@@ -24,8 +24,12 @@ object HandlebarsGrammar {
 
 class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
-  def scan(in: String) = {
-    parseAll(root, in)
+  def scan(in: String): Program = {
+    parseAll(root, in) match {
+      case Success(result, _) => result
+      // case NoSuccess(msg, next) => throw an error
+      case _ => Program(List(Content("Nothing to see here")))
+    }
   }
 
   def root: Parser[Program] = rep(content | statement) ^^ {Program(_)}
