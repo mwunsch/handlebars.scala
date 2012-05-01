@@ -9,14 +9,37 @@ case class Content(value: String) extends Node
 case class Identifier(value: String) extends Node
 case class Path(value: List[Identifier]) extends Node {
   def head: Identifier = value.head
+  def tail: List[Identifier] = value.tail
 }
 case class Comment(value: String) extends Node
-case class Partial(value: Node) extends Node
+case class Partial(value: Path) extends Node
 case class Mustache(value: Path,
-    parameters: List[Path] = List.empty,
+    parameters: List[Path] = Nil,
     escaped: Boolean = true) extends Node
 case class Section(name: Path, value: Program, inverted: Boolean = false) extends Node
-case class Program(value: List[Node]) extends Node
+case class Program(value: List[Node]) extends Node {
+  def walk[T](node: Node): String = {
+    node match {
+      case Content(content) => content
+      case Identifier(ident) => ident
+      case Path(path) => path.map(walk).mkString("/")
+      case Comment(comment) => ""
+      case Partial(partial) => "{{>" + walk(partial) + "}}"
+      case Mustache(stache, _, true) => "{{" + walk(stache) + "}}"
+      case Mustache(stache, _, false) => "{{{" + walk(stache) + "}}}"
+      case Section(path, program, false) => {
+        val ident = walk(path)
+        "{{#" + ident + "}}\n" + walk(program) + "\n{{/" + ident + "}}"
+      }
+      case Section(path, program, true) => {
+        val ident = walk(path)
+        "{{^" + ident + "}}\n" + walk(program) + "\n{{/" + ident + "}}"
+      }
+      case Program(nodes) => nodes.map(walk).mkString
+      case _ => toString
+    }
+  }
+}
 
 object HandlebarsGrammar {
   def apply(delimiters: (String,String) = ("{{","}}")) = new HandlebarsGrammar(delimiters)
@@ -28,7 +51,7 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
     parseAll(root, in) match {
       case Success(result, _) => result
       // case NoSuccess(msg, next) => throw an error
-      case _ => Program(List(Content("Nothing to see here")))
+      case _ => Program(Nil)
     }
   }
 
@@ -47,7 +70,7 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
   def section = positioned(blockify("#") ^^ {case (name, body) => Section(name, body)})
 
-  def partial = mustachify(">" ~> pad(identifier) ^^ {Partial(_)})
+  def partial = mustachify(">" ~> pad(path) ^^ {Partial(_)})
 
   def comment = mustachify("!" ~> content ^^ {t => Comment(t.value)})
 
