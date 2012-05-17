@@ -84,6 +84,10 @@ class HandlebarsGrammarSpec extends Specification with ParserMatchers {
     "scan a string and extract a program" in {
       parsers.scan("{{foo}} bar") must beAnInstanceOf[Program]
     }
+
+    "scan a string and throw an error on a syntax error" in {
+      todo
+    }
   }
 
 }

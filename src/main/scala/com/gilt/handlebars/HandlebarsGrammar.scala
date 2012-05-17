@@ -3,7 +3,7 @@ package com.gilt.handlebars
 import scala.util.parsing.combinator._
 import scala.util.parsing.input.{Positional}
 
-sealed abstract class Node extends Positional
+abstract class Node extends Positional
 
 case class Content(value: String) extends Node
 case class Identifier(value: String) extends Node
@@ -17,29 +17,7 @@ case class Mustache(value: Path,
     parameters: List[Path] = Nil,
     escaped: Boolean = true) extends Node
 case class Section(name: Path, value: Program, inverted: Boolean = false) extends Node
-case class Program(value: List[Node]) extends Node {
-  def walk[T](node: Node): String = {
-    node match {
-      case Content(content) => content
-      case Identifier(ident) => ident
-      case Path(path) => path.map(walk).mkString("/")
-      case Comment(comment) => ""
-      case Partial(partial) => "{{>" + walk(partial) + "}}"
-      case Mustache(stache, _, true) => "{{" + walk(stache) + "}}"
-      case Mustache(stache, _, false) => "{{{" + walk(stache) + "}}}"
-      case Section(path, program, false) => {
-        val ident = walk(path)
-        "{{#" + ident + "}}\n" + walk(program) + "\n{{/" + ident + "}}"
-      }
-      case Section(path, program, true) => {
-        val ident = walk(path)
-        "{{^" + ident + "}}\n" + walk(program) + "\n{{/" + ident + "}}"
-      }
-      case Program(nodes) => nodes.map(walk).mkString
-      case _ => toString
-    }
-  }
-}
+case class Program(value: List[Node]) extends Node
 
 object HandlebarsGrammar {
   def apply(delimiters: (String,String) = ("{{","}}")) = new HandlebarsGrammar(delimiters)
