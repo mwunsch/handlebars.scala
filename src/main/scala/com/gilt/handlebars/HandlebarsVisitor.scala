@@ -5,10 +5,17 @@ import com.gilt.handlebars._
 trait Context[T] {
   val context: T
 
-  def invoke(methodName: String): String = {
+  def invoke(methodName: String): Option[Any] = {
     //TODO: parameters
-    val invocation = getMethod(methodName).map { _.invoke(context) }
-    invocation.getOrElse("").toString
+    getMethod(methodName).flatMap(invoke)
+  }
+
+  def invoke(method: java.lang.reflect.Method): Option[Any] = {
+    try {
+      Some(method.invoke(context))
+    } catch {
+      case e: java.lang.IllegalArgumentException => None
+    }
   }
 
   def getMethod(name: String) = {
@@ -29,8 +36,8 @@ class HandlebarsVisitor[T](base: T) {
 
   def visit(node: Node): String = node match {
     case Content(content) => content
-    case Identifier(ident) => context.invoke(ident)
-    case (path: Path) => resolveMustache(path)
+    case Identifier(ident) => context.invoke(ident).getOrElse("").toString
+    case Path(path) => resolvePath(path).flatMap(context.invoke).getOrElse("").toString
     case Mustache(stache, _, escaped) => resolveMustache(stache, escape = escaped)
     case Program(children) => children.map(visit).mkString
     case _ => toString
@@ -38,10 +45,16 @@ class HandlebarsVisitor[T](base: T) {
 
   def resolveMustache(path: Path, escape: Boolean = true): String = {
     // TODO: resolve tail as well
-    val resolution = visit(path.head)
+    val resolution = visit(path)
     if (escape) 
       scala.xml.Utility.escape(resolution)
     else
       resolution
+  }
+
+  def resolvePath(value: List[Identifier]): Option[java.lang.reflect.Method]  = {
+    value.foldLeft(None: Option[java.lang.reflect.Method]) { (option, identifier) =>
+      context.getMethod(identifier.value)
+    }
   }
 }

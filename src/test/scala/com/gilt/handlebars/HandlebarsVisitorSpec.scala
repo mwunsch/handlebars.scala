@@ -40,13 +40,20 @@ class HandlebarsVisitorSpec extends Specification {
     "invoke a method on the base object" in {
       val hello = new { val greeting = "Hello, World" }
       val context = new RootContext(hello)
-      context.invoke("greeting") must beEqualTo("Hello, World")
+      val method = context.getMethod("greeting").get
+      context.getMethod("greeting").flatMap(context.invoke) must beSome("Hello, World")
     }
 
-    "invoke a method or return an empty string" in {
+    "invoke a method from a name" in {
       val hello = new { val greeting = "Hello, World" }
       val context = new RootContext(hello)
-      context.invoke("foobaz") must be empty
+      context.invoke("greeting") must beSome("Hello, World")
+    }
+
+    "invoke a method or return None" in {
+      val hello = new { val greeting = "Hello, World" }
+      val context = new RootContext(hello)
+      context.invoke("foobaz") must beNone
     }
   }
 
