@@ -15,5 +15,5 @@ object Handlebars {
 }
 
 class Handlebars(program: Program) {
-  def apply[T](context: T) = (new HandlebarsVisitor(context)).visit(program)
+  def apply[T](context: T) = HandlebarsVisitor(context).visit(program)
 }
