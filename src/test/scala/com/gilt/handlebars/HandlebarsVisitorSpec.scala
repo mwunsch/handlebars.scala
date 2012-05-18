@@ -135,6 +135,12 @@ class HandlebarsVisitorSpec extends Specification {
       visitor.visit(program) must beEqualTo("<strong>Hello</strong>, world.")
     }
 
+    "visit a program and render an inverted section: {{^absent}}Nothing{{/absent}}" in {
+      val program = Handlebars.parse("{{^absense}}Nothing to see here.{{/absense}}")
+      val visitor = HandlebarsVisitor("A Context[String]")
+      visitor.visit(program) must beEqualTo("Nothing to see here.")
+    }
+
   }
 
   "A Context" should {

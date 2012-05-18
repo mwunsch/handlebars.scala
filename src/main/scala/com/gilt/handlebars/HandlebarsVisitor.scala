@@ -44,7 +44,7 @@ class HandlebarsVisitor[T](context: Context[T]) {
     case Comment(_) => ""
     case Partial(partial) => compilePartial(partial).getOrElse("")
     case Mustache(stache, _, escaped) => resolveMustache(stache, escape = escaped)
-    case Section(path, value, inverted) => renderSection(path, value).getOrElse("")
+    case Section(path, value, inverted) => renderSection(path, value, inverted).getOrElse("")
     case Program(children) => children.map(visit).mkString
     case _ => toString
   }
@@ -73,15 +73,16 @@ class HandlebarsVisitor[T](context: Context[T]) {
     }
   }
 
-  def renderSection(path: Path, program: Program): Option[String] = {
+  def renderSection(path: Path, program: Program, inverted: Boolean = false): Option[String] = {
     resolvePath(path.value).map { block =>
       val visitors = block.context match {
+        // TODO: Lambdas
         case list:Iterable[_] => list.map(i => new HandlebarsVisitor(new ChildContext(i, block)))
         case value:Some[_] => Seq(new HandlebarsVisitor(new ChildContext(value.get, block)))
         case _ => Seq(new HandlebarsVisitor(block))
       }
       visitors.map(_.visit(program)).mkString
-    }
+    } orElse { if (inverted) Some(visit(program)) else None }
   }
 
   def compilePartial(path: Path): Option[String] = {
