@@ -10,3 +10,5 @@ resolvers ++= Seq(
   "Sonatype.org Snapshots" at "http://oss.sonatype.org/content/repositories/snapshots",
   "Sonatype.org Releases" at "http://oss.sonatype.org/content/repositories/releases"
 )
+
+scalacOptions += "-unchecked"
