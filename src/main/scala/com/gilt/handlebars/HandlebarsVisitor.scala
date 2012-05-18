@@ -38,6 +38,8 @@ class HandlebarsVisitor[T](base: T) {
     case Content(content) => content
     case Identifier(ident) => context.invoke(ident).getOrElse("").toString
     case Path(path) => resolvePath(path).getOrElse(new RootContext("")).context.toString
+    case Comment(_) => ""
+    case Partial(partial) => compilePartial(partial).getOrElse("")
     case Mustache(stache, _, escaped) => resolveMustache(stache, escape = escaped)
     case Program(children) => children.map(visit).mkString
     case _ => toString
@@ -64,6 +66,12 @@ class HandlebarsVisitor[T](base: T) {
           aContext.invoke(identifier.value).map(new ChildContext(_, aContext))
         }
       }
+    }
+  }
+
+  def compilePartial(path: Path): Option[String] = {
+    resolvePath(path.value).map { context =>
+      this visit HandlebarsGrammar().scan(context.context.toString)
     }
   }
 }

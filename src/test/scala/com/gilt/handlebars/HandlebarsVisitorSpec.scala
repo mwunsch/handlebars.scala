@@ -31,6 +31,14 @@ class HandlebarsVisitorSpec extends Specification {
       visitor.visit(program) must beEqualTo("HELLO, world.")
     }
 
+    "visit a program with the mustache containg a path: {{foo.bar}}" in {
+      val program = Handlebars.parse("{{greeting.toUpperCase}}, world.")
+      val visitor = new HandlebarsVisitor(new {
+        val greeting = "Hello"
+      })
+      visitor.visit(program) must beEqualTo("HELLO, world.")
+    }
+
     "visit a program with the mustache containg a path: {{foo/../bar}}" in {
       val program = Handlebars.parse("{{greeting/../farewell}}, world.")
       val visitor = new HandlebarsVisitor(new {
@@ -50,6 +58,21 @@ class HandlebarsVisitorSpec extends Specification {
         }
       })
       visitor.visit(program) must beEqualTo("Yo, world.")
+    }
+
+    "visit a program and remove comments" in {
+      val program = Handlebars.parse("Hello,{{! cruel }} world.")
+      val visitor = new HandlebarsVisitor("A Context[String]")
+      visitor.visit(program) must not contain("cruel")
+    }
+    
+    "visit a program and compile partials on the fly" in {
+      val program = Handlebars.parse("{{> greeting }} world.")
+      val visitor = new HandlebarsVisitor(new {
+        val greeting = "{{excited}}! Hi"
+        val excited = "LOLOMG"
+      })
+      visitor.visit(program) must contain("LOLOMG")
     }
   }
 
