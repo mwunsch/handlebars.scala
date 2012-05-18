@@ -27,9 +27,9 @@ trait Context[T] {
   }
 }
 
-class RootContext[T](val context: T) extends Context[T] 
+case class RootContext[T](context: T) extends Context[T] 
 
-class ChildContext[T, P](val context: T, val parent: Context[P]) extends Context[T]
+case class ChildContext[T, P](context: T, parent: Context[P]) extends Context[T]
 
 class HandlebarsVisitor[T](base: T) {
   val context = new RootContext(base)
@@ -37,7 +37,7 @@ class HandlebarsVisitor[T](base: T) {
   def visit(node: Node): String = node match {
     case Content(content) => content
     case Identifier(ident) => context.invoke(ident).getOrElse("").toString
-    case Path(path) => resolvePath(path).flatMap(context.invoke).getOrElse("").toString
+    case Path(path) => resolvePath(path).getOrElse(new RootContext("")).context.toString
     case Mustache(stache, _, escaped) => resolveMustache(stache, escape = escaped)
     case Program(children) => children.map(visit).mkString
     case _ => toString
@@ -52,9 +52,18 @@ class HandlebarsVisitor[T](base: T) {
       resolution
   }
 
-  def resolvePath(value: List[Identifier]): Option[java.lang.reflect.Method]  = {
-    value.foldLeft(None: Option[java.lang.reflect.Method]) { (option, identifier) =>
-      context.getMethod(identifier.value)
+  def resolvePath(value: List[Identifier]): Option[Context[Any]] = {
+    value.foldLeft(None: Option[Context[Any]]) { (someContext, identifier) =>
+      someContext.orElse(Some(context)).flatMap { aContext =>
+        if (identifier.value == "..") {
+          aContext match {
+            case ChildContext(_, parent) => Some(parent)
+            case _ => None
+          }
+        } else {
+          aContext.invoke(identifier.value).map(new ChildContext(_, aContext))
+        }
+      }
     }
   }
 }

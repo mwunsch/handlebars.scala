@@ -22,6 +22,35 @@ class HandlebarsVisitorSpec extends Specification {
       val visitor = new HandlebarsVisitor("A Context[String]")
       visitor.visit(program) must beEqualTo("is empty").ignoreSpace
     }
+
+    "visit a program with the mustache containg a path: {{foo/bar}}" in {
+      val program = Handlebars.parse("{{greeting/toUpperCase}}, world.")
+      val visitor = new HandlebarsVisitor(new {
+        val greeting = "Hello"
+      })
+      visitor.visit(program) must beEqualTo("HELLO, world.")
+    }
+
+    "visit a program with the mustache containg a path: {{foo/../bar}}" in {
+      val program = Handlebars.parse("{{greeting/../farewell}}, world.")
+      val visitor = new HandlebarsVisitor(new {
+        val greeting = "Hello"
+        val farewell = "Goodbye"
+      })
+      visitor.visit(program) must beEqualTo("Goodbye, world.")
+    }
+
+    "visit a program with the mustache containg a path: {{foo/bar/../baz}}" in {
+      val program = Handlebars.parse("{{greeting/hi/../yo}}, world.")
+      val visitor = new HandlebarsVisitor(new {
+        val greeting = new {
+          val hi = "Hi"
+          val yo = "Yo"
+          override def toString = "Hello"
+        }
+      })
+      visitor.visit(program) must beEqualTo("Yo, world.")
+    }
   }
 
   "A Context" should {
