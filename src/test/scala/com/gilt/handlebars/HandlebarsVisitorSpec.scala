@@ -65,7 +65,7 @@ class HandlebarsVisitorSpec extends Specification {
       val visitor = HandlebarsVisitor("A Context[String]")
       visitor.visit(program) must not contain("cruel")
     }
-    
+
     "visit a program and compile partials on the fly" in {
       val program = Handlebars.parse("{{> greeting }} world.")
       val visitor = HandlebarsVisitor(new {
@@ -109,6 +109,30 @@ class HandlebarsVisitorSpec extends Specification {
         val names = Seq("mark","eric","mike")
       })
       visitor.visit(program) must beEqualTo("mark & eric & mike & me")
+    }
+
+    "escape mustaches by default" in {
+      val program = Handlebars.parse("{{greeting}}, world.")
+      val visitor = HandlebarsVisitor(new {
+        val greeting = "<strong>Hello</strong>"
+      })
+      visitor.visit(program) must beEqualTo("&lt;strong&gt;Hello&lt;/strong&gt;, world.")
+    }
+
+    "allow unescaped mustaches" in {
+      val program = Handlebars.parse("{{{greeting}}}, world.")
+      val visitor = HandlebarsVisitor(new {
+        val greeting = "<strong>Hello</strong>"
+      })
+      visitor.visit(program) must beEqualTo("<strong>Hello</strong>, world.")
+    }
+
+    "allow unescaped mustaches with the ampersand syntax" in {
+      val program = Handlebars.parse("{{& greeting}}, world.")
+      val visitor = HandlebarsVisitor(new {
+        val greeting = "<strong>Hello</strong>"
+      })
+      visitor.visit(program) must beEqualTo("<strong>Hello</strong>, world.")
     }
 
   }
