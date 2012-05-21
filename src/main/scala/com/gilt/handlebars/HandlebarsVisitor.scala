@@ -7,18 +7,18 @@ trait Context[T] {
 
   def invoke[A](methodName: String, args: List[A] = Nil): Option[Any] = {
     //TODO: parameters
-    getMethod(methodName, args).flatMap(invoke(_, args.map(_.asInstanceOf[java.lang.Object])))
+    getMethod(methodName, args).flatMap(invoke(_, args))
   }
 
-  def invoke(method: java.lang.reflect.Method, args: Seq[java.lang.Object]): Option[Any] = {
+  def invoke[A](method: java.lang.reflect.Method, args: List[A]): Option[Any] = {
     try {
-      Some(method.invoke(context, args: _*))
+      Some(method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*))
     } catch {
       case e: java.lang.IllegalArgumentException => None
     }
   }
 
-  def getMethod[A](name: String, args: Seq[A] = Nil) = {
+  def getMethod[A](name: String, args: List[A] = Nil) = {
     try {
       if (args.isEmpty)
         Some(context.getClass.getMethod(name))
@@ -31,7 +31,7 @@ trait Context[T] {
 
 }
 
-case class RootContext[T](context: T) extends Context[T] 
+case class RootContext[T](context: T) extends Context[T]
 
 case class ChildContext[T, P](context: T, parent: Context[P]) extends Context[T]
 
@@ -47,19 +47,9 @@ class HandlebarsVisitor[T](context: Context[T]) {
     case Comment(_) => ""
     case Partial(partial) => compilePartial(partial).getOrElse("")
     case Mustache(stache, params, escaped) => resolveMustache(stache, params, escape = escaped)
-    case Section(stache, value, inverted) => renderSection(stache.value, value, inverted).getOrElse("")
+    case Section(stache, value, inverted) => renderSection(stache.value, stache.parameters, value, inverted).getOrElse("")
     case Program(children) => children.map(visit).mkString
     case _ => toString
-  }
-
-  def resolveMustache(path: Path, parameters: List[Path], escape: Boolean = true): String = {
-    val args = parameters.flatMap(param => resolvePath(param.value))
-    val lookup = resolvePath(path.value, args)
-    val resolution = lookup.getOrElse(new RootContext("")).context.toString
-    if (escape) 
-      scala.xml.Utility.escape(resolution)
-    else
-      resolution
   }
 
   def resolvePath(list: List[Identifier], args: List[Context[Any]] = Nil): Option[Context[Any]] = {
@@ -77,8 +67,18 @@ class HandlebarsVisitor[T](context: Context[T]) {
     }
   }
 
-  def renderSection(path: Path, program: Program, inverted: Boolean = false): Option[String] = {
-    resolvePath(path.value).map { block =>
+  def resolveMustache(path: Path, parameters: List[Path], escape: Boolean = true): String = {
+    val args = getArguments(parameters)
+    val lookup = resolvePath(path.value, args)
+    val resolution = lookup.getOrElse(new RootContext("")).context.toString
+    if (escape)
+      scala.xml.Utility.escape(resolution)
+    else
+      resolution
+  }
+
+  def renderSection(path: Path, parameters: List[Path], program: Program, inverted: Boolean = false): Option[String] = {
+    resolvePath(path.value, getArguments(parameters)).map { block =>
       val visitors = block.context match {
         // TODO: Lambdas
         case list:Iterable[_] => list.map(i => new HandlebarsVisitor(new ChildContext(i, block)))
@@ -88,6 +88,8 @@ class HandlebarsVisitor[T](context: Context[T]) {
       visitors.map(_.visit(program)).mkString
     } orElse { if (inverted) Some(visit(program)) else None }
   }
+
+  def getArguments(paths: List[Path]) = paths flatMap {path => resolvePath(path.value)}
 
   def compilePartial(path: Path): Option[String] = {
     resolvePath(path.value).map { context =>
