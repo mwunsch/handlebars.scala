@@ -16,7 +16,7 @@ case class Partial(value: Path) extends Node
 case class Mustache(value: Path,
     parameters: List[Path] = Nil,
     escaped: Boolean = true) extends Node
-case class Section(name: Path, value: Program, inverted: Boolean = false) extends Node
+case class Section(name: Mustache, value: Program, inverted: Boolean = false) extends Node
 case class Program(value: List[Node]) extends Node
 
 object HandlebarsGrammar {
@@ -67,10 +67,10 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
   def identifier = (".." | ident) ^^ {Identifier(_)}
 
   def blockify(prefix: String) = mustachify(prefix ~> pad(mustachable)) >> {
-    case (identity: Mustache) => {
-      val path: Path = identity.value
+    case (stache: Mustache) => {
+      val path: Path = stache.value
       pad(root) <~ openDelimiter <~ "/"<~ pad(path.head.value) <~ closeDelimiter ^^ { body =>
-        (path, body)
+        (stache, body)
       }
     }
   }

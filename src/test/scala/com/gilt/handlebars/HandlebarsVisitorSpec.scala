@@ -141,6 +141,25 @@ class HandlebarsVisitorSpec extends Specification {
       visitor.visit(program) must beEqualTo("Nothing to see here.")
     }
 
+    "visit a program and resolve a helper mustache: {{helper argument}}" in {
+      val program = Handlebars.parse("{{greeting addressee}}.")
+      val visitor = HandlebarsVisitor(new {
+        def greeting(who: String) = "Hello, "+who
+        val addressee = "world"
+      })
+      visitor.visit(program) must beEqualTo("Hello, world.")
+    }
+
+    "visit a program and resolve a helper mustache: {{helper arg1 arg2}}" in {
+      val program = Handlebars.parse("{{greeting title addressee}}.")
+      val visitor = HandlebarsVisitor(new {
+        def greeting(title: String, who: String) = "Hello, "+title+" "+who
+        val title = "Mr." 
+        val addressee = "Mark"
+      })
+      visitor.visit(program) must beEqualTo("Hello, Mr. Mark.")
+    }
+
   }
 
   "A Context" should {
@@ -160,7 +179,7 @@ class HandlebarsVisitorSpec extends Specification {
       val hello = new { val greeting = "Hello, World" }
       val context = new RootContext(hello)
       val method = context.getMethod("greeting").get
-      context.getMethod("greeting").flatMap(context.invoke) must beSome("Hello, World")
+      context.getMethod("greeting").flatMap(context.invoke(_, Nil)) must beSome("Hello, World")
     }
 
     "invoke a method from a name" in {
@@ -174,6 +193,15 @@ class HandlebarsVisitorSpec extends Specification {
       val context = new RootContext(hello)
       context.invoke("foobaz") must beNone
     }
+
+    "invoke a method with list of arguments" in {
+      val hello = new { 
+        def greeting(who: String) = "Hello, " + who
+      }
+      val context = new RootContext(hello)
+      context.invoke("greeting", List("World")) must beSome("Hello, World")
+    }
+
   }
 
 }
