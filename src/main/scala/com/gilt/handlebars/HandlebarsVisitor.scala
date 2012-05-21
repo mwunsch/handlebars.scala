@@ -19,13 +19,8 @@ trait Context[T] {
   }
 
   def getMethod[A](name: String, args: List[A] = Nil) = {
-    try {
-      if (args.isEmpty)
-        Some(context.getClass.getMethod(name))
-      else
-        Some(context.getClass.getMethod(name, args.map(_.getClass): _*))
-    } catch {
-      case e: java.lang.NoSuchMethodException => None
+    context.getClass.getMethods find { method =>
+      method.getName == name && method.getParameterTypes.length == args.length
     }
   }
 

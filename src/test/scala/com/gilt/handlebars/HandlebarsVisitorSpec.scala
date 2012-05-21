@@ -154,7 +154,7 @@ class HandlebarsVisitorSpec extends Specification {
       val program = Handlebars.parse("{{greeting title addressee}}.")
       val visitor = HandlebarsVisitor(new {
         def greeting(title: String, who: String) = "Hello, "+title+" "+who
-        val title = "Mr."
+        val title = "Mr." 
         val addressee = "Mark"
       })
       visitor.visit(program) must beEqualTo("Hello, Mr. Mark.")
@@ -166,7 +166,21 @@ class HandlebarsVisitorSpec extends Specification {
         def list(names: List[String]) = names.mkString(" & ")
         val people = List("Mark","Mike","Eric")
       })
-      visitor.visit(program) must beEqualTo("Mark & Mike & Eric")
+      visitor.visit(program) must beEqualTo("Mark &amp; Mike &amp; Eric")
+    }
+
+    "visit a program and evaluate a block expression" in {
+      val program = Handlebars.parse("{{#head people}}Just {{name}}{{/head}}")
+      val visitor = HandlebarsVisitor(new {
+        def head[T](names: List[T]) = names.head
+        val people = List(
+          new { val name = "Mark" },
+          new { val name = "Eric" },
+          new { val name = "Mike" }
+        )
+      })
+      visitor.visit(program) must beEqualTo("Just Mark")
+
     }
 
   }
@@ -204,7 +218,7 @@ class HandlebarsVisitorSpec extends Specification {
     }
 
     "invoke a method with list of arguments" in {
-      val hello = new {
+      val hello = new { 
         def greeting(who: String) = "Hello, " + who
       }
       val context = new RootContext(hello)
