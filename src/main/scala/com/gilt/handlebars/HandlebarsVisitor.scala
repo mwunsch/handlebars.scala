@@ -1,16 +1,19 @@
 package com.gilt.handlebars
 
 import com.gilt.handlebars._
+import org.slf4j.{Logger, LoggerFactory}
 
 trait Context[T] {
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
+
   val context: T
 
   def invoke[A](methodName: String, args: List[A] = Nil): Option[Any] = {
-    //TODO: parameters
     getMethod(methodName, args).flatMap(invoke(_, args))
   }
 
   def invoke[A](method: java.lang.reflect.Method, args: List[A]): Option[Any] = {
+    logger.debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
     try {
       Some(method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*))
     } catch {
@@ -35,6 +38,8 @@ object HandlebarsVisitor {
 }
 
 class HandlebarsVisitor[T](context: Context[T]) {
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
+
   def visit(node: Node): String = node match {
     case Content(content) => content
     case Identifier(ident) => context.invoke(ident).getOrElse("").toString
@@ -48,7 +53,7 @@ class HandlebarsVisitor[T](context: Context[T]) {
   }
 
   def resolvePath(list: List[Identifier], args: List[Context[Any]] = Nil): Option[Context[Any]] = {
-    list.foldLeft(None: Option[Context[Any]]) { (someContext, identifier) =>
+    val resolution = list.foldLeft(None: Option[Context[Any]]) { (someContext, identifier) =>
       someContext.orElse(Some(context)).flatMap { aContext =>
         if (identifier.value == "..") {
           aContext match {
@@ -59,6 +64,10 @@ class HandlebarsVisitor[T](context: Context[T]) {
           aContext.invoke(identifier.value, args.map(_.context)).map(new ChildContext(_, aContext))
         }
       }
+    }
+    resolution orElse {
+      logger.debug("Could not find identifier: '%s' in context".format(list.map(_.value).mkString(".")))
+      None
     }
   }
 
