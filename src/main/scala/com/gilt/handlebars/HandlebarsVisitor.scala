@@ -39,6 +39,7 @@ object HandlebarsVisitor {
 
 class HandlebarsVisitor[T](context: Context[T]) {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
+  logger.debug("Created a visitor with context: %s".format(context.context))
 
   def visit(node: Node): String = node match {
     case Content(content) => content
@@ -66,8 +67,11 @@ class HandlebarsVisitor[T](context: Context[T]) {
       }
     }
     resolution orElse {
-      logger.debug("Could not find identifier: '%s' in context".format(list.map(_.value).mkString(".")))
-      None
+      logger.debug("Could not find identifier: '%s' in context. Searching in helpers.".format(list.map(_.value).mkString(".")))
+      helpers.get(list.head.value) map { fn =>
+        logger.debug("Found: '%s' in helpers.".format(list.head.value))
+        new ChildContext(fn(args.map(_.context), this, Some(context.context)), context)
+      }
     }
   }
 
@@ -83,14 +87,17 @@ class HandlebarsVisitor[T](context: Context[T]) {
 
   def renderSection(path: Path, parameters: List[Path], program: Program, inverted: Boolean = false): Option[String] = {
     resolvePath(path.value, getArguments(parameters)).map { block =>
-      val visitors = block.context match {
-        // TODO: Lambdas
-        case list:Iterable[_] => list.map(i => new HandlebarsVisitor(new ChildContext(i, block)))
-        case value:Some[_] => Seq(new HandlebarsVisitor(new ChildContext(value.get, block)))
-        case _ => Seq(new HandlebarsVisitor(block))
+      val visitor = fn(block.context)(program)
+      logger.debug("Evaluated block as: %s".format(visitor))
+      visitor
+    } orElse { 
+      if (inverted) {
+        logger.debug("Inverting the block for: %s".format(path))
+        Some(visit(program)) 
+      } else {
+        None 
       }
-      visitors.map(_.visit(program)).mkString
-    } orElse { if (inverted) Some(visit(program)) else None }
+    }
   }
 
   def getArguments(paths: List[Path]) = paths flatMap {path => resolvePath(path.value)}
@@ -100,4 +107,24 @@ class HandlebarsVisitor[T](context: Context[T]) {
       this visit HandlebarsGrammar().scan(context.context.toString)
     }
   }
+
+  // Helpers are a Map[String, (Context[Any], Visitor??) => Any])
+  def helpers: Map[String, (Any, HandlebarsVisitor[T], Option[T]) => Any] = Map(
+    "with" -> ((context, options, parent) => options.fn(context)),
+    "noop" -> ((context, options, parent) => options.fn(parent))
+  )
+
+  // Mimicking the options of Handlebarsjs
+  def fn[A](value: A) = {
+    logger.debug("Preparing Context for new value: %s".format(value))
+    val block = new ChildContext(value, context)
+
+    (program: Program) => value match {
+      case list:Iterable[_] => list.map(i => new HandlebarsVisitor(new ChildContext(i, block)).visit(program)).mkString
+      case fun:Function1[_,_] => fun.asInstanceOf[Function1[Program,String]].apply(program).toString
+      case Some(v) => new HandlebarsVisitor(new ChildContext(v, block)).visit(program)
+      case _ => new HandlebarsVisitor(block).visit(program)
+    }
+  }
+
 }

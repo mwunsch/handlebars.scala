@@ -154,7 +154,7 @@ class HandlebarsVisitorSpec extends Specification {
       val program = Handlebars.parse("{{greeting title addressee}}.")
       val visitor = HandlebarsVisitor(new {
         def greeting(title: String, who: String) = "Hello, "+title+" "+who
-        val title = "Mr." 
+        val title = "Mr."
         val addressee = "Mark"
       })
       visitor.visit(program) must beEqualTo("Hello, Mr. Mark.")
@@ -180,9 +180,25 @@ class HandlebarsVisitorSpec extends Specification {
         )
       })
       visitor.visit(program) must beEqualTo("Just Mark")
-
     }
 
+    "visit a program and find a basic block helper ({{#noop}}) in the helpers map" in {
+      val program = Handlebars.parse("{{#noop}}{{name}}{{/noop}}")
+      val visitor = HandlebarsVisitor(new {
+        val name = "Mark"
+      })
+      visitor.visit(program) must beEqualTo("Mark")
+    }
+
+    "visit a program and find a block expression ({{#with}}) in the helpers map" in {
+      val program = Handlebars.parse("{{#with story}}{{intro}}{{/with}}")
+      val visitor = HandlebarsVisitor(new {
+        val story = new {
+          val intro = "Before the jump"
+        }
+      })
+      visitor.visit(program) must beEqualTo("Before the jump")
+    }
   }
 
   "A Context" should {
@@ -218,7 +234,7 @@ class HandlebarsVisitorSpec extends Specification {
     }
 
     "invoke a method with list of arguments" in {
-      val hello = new { 
+      val hello = new {
         def greeting(who: String) = "Hello, " + who
       }
       val context = new RootContext(hello)
