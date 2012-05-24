@@ -72,6 +72,9 @@ class HandlebarsVisitor[T](context: Context[T]) {
         logger.debug("Found: '%s' in helpers.".format(list.head.value))
         new ChildContext(fn(args.map(_.context), this, Some(context.context)), context)
       }
+    } orElse {
+      logger.warn("Unable to find value '%s' in context: '%s' or available helpers.".format(list.map(_.value).mkString("/"), context.context))
+      None
     }
   }
 
@@ -90,12 +93,12 @@ class HandlebarsVisitor[T](context: Context[T]) {
       val visitor = fn(block.context)(program)
       logger.debug("Evaluated block as: %s".format(visitor))
       visitor
-    } orElse { 
+    } orElse {
       if (inverted) {
         logger.debug("Inverting the block for: %s".format(path))
-        Some(visit(program)) 
+        Some(visit(program))
       } else {
-        None 
+        None
       }
     }
   }
@@ -109,9 +112,21 @@ class HandlebarsVisitor[T](context: Context[T]) {
   }
 
   // Helpers are a Map[String, (Context[Any], Visitor??) => Any])
-  def helpers: Map[String, (Any, HandlebarsVisitor[T], Option[T]) => Any] = Map(
+  def helpers: Map[String, (Seq[Any], HandlebarsVisitor[T], Option[T]) => Any] = Map(
     "with" -> ((context, options, parent) => options.fn(context)),
-    "noop" -> ((context, options, parent) => options.fn(parent))
+    "noop" -> ((context, options, parent) => options.fn(parent)),
+    "if" -> ((context, options, parent) => context.head match {
+      case None => None
+      case false => None
+      case _ => options.fn(parent)
+    }),
+    "unless" -> ((context, options, parent) => context.head match {
+      case None => options.fn(parent)
+      case false => options.fn(parent)
+      case _ => None
+    }),
+    "each" -> ((context, options, parent) => options.fn(context.head)),
+    "this" -> ((context, options, parent) => parent.get)
   )
 
   // Mimicking the options of Handlebarsjs
@@ -123,6 +138,7 @@ class HandlebarsVisitor[T](context: Context[T]) {
       case list:Iterable[_] => list.map(i => new HandlebarsVisitor(new ChildContext(i, block)).visit(program)).mkString
       case fun:Function1[_,_] => fun.asInstanceOf[Function1[Program,String]].apply(program).toString
       case Some(v) => new HandlebarsVisitor(new ChildContext(v, block)).visit(program)
+      case None => ""
       case _ => new HandlebarsVisitor(block).visit(program)
     }
   }

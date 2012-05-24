@@ -199,6 +199,38 @@ class HandlebarsVisitorSpec extends Specification {
       })
       visitor.visit(program) must beEqualTo("Before the jump")
     }
+
+    "visit a program and find a block expression {{#if}} in the helpers map" in {
+      val program = Handlebars.parse("{{#if boolean}}Hi{{/if}}")
+      val visitor = HandlebarsVisitor(new {
+        val boolean = true
+      })
+      visitor.visit(program) must beEqualTo("Hi")
+    }
+
+    "visit a program and find a block expression {{#unless}} in the helpers map" in {
+      val program = Handlebars.parse("{{#unless boolean}}Hi{{/unless}}")
+      val visitor = HandlebarsVisitor(new {
+        val boolean = false
+      })
+      visitor.visit(program) must beEqualTo("Hi")
+    }
+
+    "visit a program and find a block expression {{#each}} in the helpers map" in {
+      val program = Handlebars.parse("{{#each people}}!{{/each}}")
+      val visitor = HandlebarsVisitor(new {
+        val people = Seq("Yehuda Katz","Alan Johnson","Charles Johnson")
+      })
+      visitor.visit(program) must beEqualTo("!!!")
+    }
+
+    "visit a program and use the {{this}} helper to refer to the current context" in {
+      val program = Handlebars.parse("{{#each people}}|{{this}}{{/each}}|")
+      val visitor = HandlebarsVisitor(new {
+        val people = Seq("Yehuda Katz","Alan Johnson","Charles Johnson")
+      })
+      visitor.visit(program) must beEqualTo("|Yehuda Katz|Alan Johnson|Charles Johnson|")
+    }
   }
 
   "A Context" should {
