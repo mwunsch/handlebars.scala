@@ -5,39 +5,10 @@ import Handlebars.Helper
 
 import org.slf4j.{Logger, LoggerFactory}
 
-trait Context[T] {
-  private val logger: Logger = LoggerFactory.getLogger(getClass)
-
-  val context: T
-
-  def invoke[A](methodName: String, args: List[A] = Nil): Option[Any] = {
-    getMethod(methodName, args).flatMap(invoke(_, args))
-  }
-
-  def invoke[A](method: java.lang.reflect.Method, args: List[A]): Option[Any] = {
-    logger.debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
-    try {
-      Some(method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*))
-    } catch {
-      case e: java.lang.IllegalArgumentException => None
-    }
-  }
-
-  def getMethod[A](name: String, args: List[A] = Nil) = {
-    context.getClass.getMethods find { method =>
-      method.getName == name && method.getParameterTypes.length == args.length
-    }
-  }
-
-}
-
-case class RootContext[T](context: T) extends Context[T]
-
-case class ChildContext[T, P](context: T, parent: Context[P]) extends Context[T]
-
 object HandlebarsVisitor {
-  def apply[T](base: T, helpers: Map[String,Helper[T]] = Map.empty[String,Helper[T]]) = new HandlebarsVisitor(new RootContext(base), helpers)
-
+  def apply[T](base: T, helpers: Map[String,Helper[T]] = Map.empty[String,Helper[T]]) = {
+    new HandlebarsVisitor(new RootContext(base), helpers)
+  }
 }
 
 class HandlebarsVisitor[T](context: Context[T], 
@@ -108,15 +79,12 @@ class HandlebarsVisitor[T](context: Context[T],
     }
   }
 
-  def getArguments(paths: List[Path]) = paths flatMap {path => resolvePath(path.value)}
-
   def compilePartial(path: Path): Option[String] = {
     resolvePath(path.value).map { context =>
       this visit HandlebarsGrammar().scan(context.context.toString)
     }
   }
 
-  // Helpers are a Map[String, (Context[Any], Visitor??) => Any])
   def helpers: Map[String, (Seq[Any], HandlebarsVisitor[T], Option[T]) => Any] = {
     builtinHelpers ++ additionalHelpers
   }
@@ -156,4 +124,36 @@ class HandlebarsVisitor[T](context: Context[T],
     "this" -> ((context, options, parent) => parent.get)
   )
 
+  private def getArguments(paths: List[Path]) = paths flatMap {path => resolvePath(path.value)}
+
 }
+
+trait Context[T] {
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
+
+  val context: T
+
+  def invoke[A](methodName: String, args: List[A] = Nil): Option[Any] = {
+    getMethod(methodName, args).flatMap(invoke(_, args))
+  }
+
+  def invoke[A](method: java.lang.reflect.Method, args: List[A]): Option[Any] = {
+    logger.debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
+    try {
+      Some(method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*))
+    } catch {
+      case e: java.lang.IllegalArgumentException => None
+    }
+  }
+
+  def getMethod[A](name: String, args: List[A] = Nil) = {
+    context.getClass.getMethods find { method =>
+      method.getName == name && method.getParameterTypes.length == args.length
+    }
+  }
+
+}
+
+case class RootContext[T](context: T) extends Context[T]
+
+case class ChildContext[T, P](context: T, parent: Context[P]) extends Context[T]

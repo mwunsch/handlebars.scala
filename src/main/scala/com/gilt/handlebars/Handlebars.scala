@@ -18,5 +18,7 @@ object Handlebars {
 class Handlebars(program: Program) {
   import Handlebars.Helper
 
-  def apply[T](context: T, helpers: Map[String,Helper[T]] = Map.empty[String,Helper[T]]) = HandlebarsVisitor(context, helpers).visit(program)
+  def apply[T](context: T, helpers: Map[String,Helper[T]] = Map.empty[String,Helper[T]]) = {
+    HandlebarsVisitor(context, helpers).visit(program)
+  }
 }
