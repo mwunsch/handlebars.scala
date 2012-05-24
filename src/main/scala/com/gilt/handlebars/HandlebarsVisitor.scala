@@ -38,10 +38,14 @@ class HandlebarsVisitor[T](context: Context[T],
             case _ => None
           }
         } else {
-          aContext.invoke(identifier.value, args.map(_.context)).map(new ChildContext(_, aContext))
+          aContext.context match {
+            case m:Map[_,_] => m.asInstanceOf[Map[String,_]].get(identifier.value).map(new ChildContext(_, aContext))
+            case _ => aContext.invoke(identifier.value, args.map(_.context)).map(new ChildContext(_, aContext))
+          }
         }
       }
     }
+
     resolution orElse {
       logger.debug("Could not find identifier: '%s' in context. Searching in helpers.".format(list.map(_.value).mkString(".")))
       helpers.get(list.head.value) map { fn =>

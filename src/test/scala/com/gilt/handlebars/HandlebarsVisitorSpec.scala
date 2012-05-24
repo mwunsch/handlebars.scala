@@ -75,6 +75,12 @@ class HandlebarsVisitorSpec extends Specification {
       visitor.visit(program) must contain("LOLOMG")
     }
 
+    "visit a program and use Map keys when the context is a map" in {
+      val program = Handlebars.parse("{{greeting}}, world")
+      val visitor = HandlebarsVisitor(Map("greeting" -> "Hello"))
+      visitor.visit(program) must beEqualTo("Hello, world")
+    }
+
     "visit a program and render a section: {{#object}}{{member}}{{/object}}" in {
       val program = Handlebars.parse("{{#greeting}}{{yo}}{{/greeting}}, world.")
       val visitor = HandlebarsVisitor(new {
