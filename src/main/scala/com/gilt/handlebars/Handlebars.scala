@@ -12,8 +12,11 @@ object Handlebars {
     HandlebarsGrammar(delimiters).scan(template)
   }
 
+  type Helper[T] = (Seq[Any], HandlebarsVisitor[T], Option[T]) => Any
 }
 
 class Handlebars(program: Program) {
-  def apply[T](context: T) = HandlebarsVisitor(context).visit(program)
+  import Handlebars.Helper
+
+  def apply[T](context: T, helpers: Map[String,Helper[T]] = Map.empty[String,Helper[T]]) = HandlebarsVisitor(context, helpers).visit(program)
 }

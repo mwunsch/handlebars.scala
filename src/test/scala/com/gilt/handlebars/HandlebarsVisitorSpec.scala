@@ -231,6 +231,20 @@ class HandlebarsVisitorSpec extends Specification {
       })
       visitor.visit(program) must beEqualTo("|Yehuda Katz|Alan Johnson|Charles Johnson|")
     }
+
+    "visit a program and pass in custom helpers" in {
+      val program = Handlebars.parse("{{#head people}}{{this}}{{/head}}")
+      val helpers: Map[String, Handlebars.Helper[Any]] = Map(
+        "head" -> ((context, option, parent) => context.head match {
+          case list:Seq[_] => list.head
+          case _ => context.head
+        })
+      )
+      val visitor = HandlebarsVisitor(new {
+        val people = Seq("Yehuda Katz","Alan Johnson","Charles Johnson")
+      }, helpers)
+      visitor.visit(program) must beEqualTo("Yehuda Katz")
+    }
   }
 
   "A Context" should {

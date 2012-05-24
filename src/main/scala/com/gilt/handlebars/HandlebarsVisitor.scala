@@ -1,6 +1,8 @@
 package com.gilt.handlebars
 
 import com.gilt.handlebars._
+import Handlebars.Helper
+
 import org.slf4j.{Logger, LoggerFactory}
 
 trait Context[T] {
@@ -34,10 +36,13 @@ case class RootContext[T](context: T) extends Context[T]
 case class ChildContext[T, P](context: T, parent: Context[P]) extends Context[T]
 
 object HandlebarsVisitor {
-  def apply[T](base: T) = new HandlebarsVisitor(new RootContext(base))
+  def apply[T](base: T, helpers: Map[String,Helper[T]] = Map.empty[String,Helper[T]]) = new HandlebarsVisitor(new RootContext(base), helpers)
+
 }
 
-class HandlebarsVisitor[T](context: Context[T]) {
+class HandlebarsVisitor[T](context: Context[T], 
+    additionalHelpers: Map[String, Helper[T]] = Map.empty[String, Helper[T]]) {
+
   private val logger: Logger = LoggerFactory.getLogger(getClass)
   logger.debug("Created a visitor with context: %s".format(context.context))
 
@@ -112,7 +117,29 @@ class HandlebarsVisitor[T](context: Context[T]) {
   }
 
   // Helpers are a Map[String, (Context[Any], Visitor??) => Any])
-  def helpers: Map[String, (Seq[Any], HandlebarsVisitor[T], Option[T]) => Any] = Map(
+  def helpers: Map[String, (Seq[Any], HandlebarsVisitor[T], Option[T]) => Any] = {
+    builtinHelpers ++ additionalHelpers
+  }
+
+  // Mimicking the options of Handlebarsjs
+  def fn[A](value: A) = {
+    logger.debug("Preparing Context for new value: %s".format(value))
+    val block = new ChildContext(value, context)
+
+    (program: Program) => value match {
+      case list:Iterable[_] => list.map(i => createVisitor(new ChildContext(i, block)).visit(program)).mkString
+      case fun:Function1[_,_] => fun.asInstanceOf[Function1[Program,String]].apply(program).toString
+      case Some(v) => createVisitor(new ChildContext(v, block)).visit(program)
+      case None => ""
+      case _ => createVisitor(block).visit(program)
+    }
+  }
+
+  private def createVisitor[A](context: Context[A]) = {
+    new HandlebarsVisitor(context, additionalHelpers.asInstanceOf[Map[String,Helper[A]]])
+  }
+
+  private val builtinHelpers: Map[String, Helper[T]] = Map(
     "with" -> ((context, options, parent) => options.fn(context)),
     "noop" -> ((context, options, parent) => options.fn(parent)),
     "if" -> ((context, options, parent) => context.head match {
@@ -128,19 +155,5 @@ class HandlebarsVisitor[T](context: Context[T]) {
     "each" -> ((context, options, parent) => options.fn(context.head)),
     "this" -> ((context, options, parent) => parent.get)
   )
-
-  // Mimicking the options of Handlebarsjs
-  def fn[A](value: A) = {
-    logger.debug("Preparing Context for new value: %s".format(value))
-    val block = new ChildContext(value, context)
-
-    (program: Program) => value match {
-      case list:Iterable[_] => list.map(i => new HandlebarsVisitor(new ChildContext(i, block)).visit(program)).mkString
-      case fun:Function1[_,_] => fun.asInstanceOf[Function1[Program,String]].apply(program).toString
-      case Some(v) => new HandlebarsVisitor(new ChildContext(v, block)).visit(program)
-      case None => ""
-      case _ => new HandlebarsVisitor(block).visit(program)
-    }
-  }
 
 }
