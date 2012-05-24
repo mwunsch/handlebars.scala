@@ -1,7 +1,7 @@
 package com.gilt.handlebars
 
 import scala.util.parsing.combinator._
-import scala.util.parsing.input.{Positional}
+import scala.util.parsing.input.{Positional, Position}
 
 abstract class Node extends Positional
 
@@ -19,6 +19,8 @@ case class Mustache(value: Path,
 case class Section(name: Mustache, value: Program, inverted: Boolean = false) extends Node
 case class Program(value: List[Node]) extends Node
 
+case class InvalidSyntaxException(msg: String, pos: Position) extends RuntimeException(msg)
+
 object HandlebarsGrammar {
   def apply(delimiters: (String,String) = ("{{","}}")) = new HandlebarsGrammar(delimiters)
 }
@@ -28,8 +30,7 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
   def scan(in: String): Program = {
     parseAll(root, in) match {
       case Success(result, _) => result
-      // case NoSuccess(msg, next) => throw an error
-      case _ => Program(Nil)
+      case NoSuccess(msg, next) => throw new InvalidSyntaxException(msg, next.pos)
     }
   }
 

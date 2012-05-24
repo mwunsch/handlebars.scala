@@ -86,7 +86,7 @@ class HandlebarsGrammarSpec extends Specification with ParserMatchers {
     }
 
     "scan a string and throw an error on a syntax error" in {
-      todo
+      parsers.scan("{{foo} bar") must throwA[InvalidSyntaxException]
     }
   }
 
