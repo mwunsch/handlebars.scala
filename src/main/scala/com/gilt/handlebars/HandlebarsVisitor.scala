@@ -11,7 +11,7 @@ object HandlebarsVisitor {
   }
 }
 
-class HandlebarsVisitor[T](context: Context[T], 
+class HandlebarsVisitor[T](context: Context[T],
     additionalHelpers: Map[String, Helper[T]] = Map.empty[String, Helper[T]]) {
 
   private val logger: Logger = LoggerFactory.getLogger(getClass)
