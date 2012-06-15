@@ -13,3 +13,5 @@ resolvers ++= Seq(
 )
 
 scalacOptions += "-unchecked"
+
+crossPaths := false
