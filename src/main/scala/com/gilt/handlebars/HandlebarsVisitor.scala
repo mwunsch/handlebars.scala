@@ -3,6 +3,8 @@ package com.gilt.handlebars
 import com.gilt.handlebars._
 import Handlebars.Helper
 
+import collection.JavaConversions._
+
 import org.slf4j.{Logger, LoggerFactory}
 
 object HandlebarsVisitor {
@@ -100,6 +102,7 @@ class HandlebarsVisitor[T](context: Context[T],
 
     (program: Program) => value match {
       case list:Iterable[_] => list.map(i => createVisitor(new ChildContext(i, block)).visit(program)).mkString
+      case javaList:java.util.Collection[_] => javaList.map(i => createVisitor(new ChildContext(i, block)).visit(program)).mkString
       case fun:Function1[_,_] => fun.asInstanceOf[Function1[Program,String]].apply(program).toString
       case Some(v) => createVisitor(new ChildContext(v, block)).visit(program)
       case None => ""

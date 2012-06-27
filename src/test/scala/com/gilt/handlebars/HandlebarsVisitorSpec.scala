@@ -117,6 +117,20 @@ class HandlebarsVisitorSpec extends Specification {
       visitor.visit(program) must beEqualTo("mark & eric & mike & me")
     }
 
+    "visit a program and render a section, where the block context is a Java Collection" in {
+      class Person(val name: String)
+
+      val program = Handlebars.parse("{{#people}}{{name}} & {{/people}}me")
+      val names = new java.util.ArrayList[Person]
+      names.add(new Person("chris"))
+      names.add(new Person("yoni"))
+      names.add(new Person("jim"))
+      val visitor = HandlebarsVisitor(new {
+        val people = names
+      })
+      visitor.visit(program) must beEqualTo("chris & yoni & jim & me")
+    }
+
     "escape mustaches by default" in {
       val program = Handlebars.parse("{{greeting}}, world.")
       val visitor = HandlebarsVisitor(new {
