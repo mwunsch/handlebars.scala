@@ -2,6 +2,7 @@ package com.gilt.handlebars
 
 import org.specs2.mutable._
 import com.gilt.handlebars._
+import com.google.common.base.Optional
 
 class HandlebarsVisitorSpec extends Specification {
   "A Handlebars Visitor" should {
@@ -129,6 +130,24 @@ class HandlebarsVisitorSpec extends Specification {
         val people = names
       })
       visitor.visit(program) must beEqualTo("chris & yoni & jim & me")
+    }
+
+    "visit a program and render a section, where the the data is an guava Optional[String]" in {
+      val program = Handlebars.parse("hello, {{name}}")
+      val visitor = HandlebarsVisitor(new {
+        val name = Optional.of("chris")
+      })
+      visitor.visit(program) must beEqualTo("hello, chris")
+    }
+
+    "visit a program and render a section, where the the data is an guava Optional[Any]" in {
+      class Person(val name: Optional[String])
+
+      val program = Handlebars.parse("hello, {{person.name}}")
+      val visitor = HandlebarsVisitor(new {
+        val person = Optional.of(new Person(Optional.of("chris")))
+      })
+      visitor.visit(program) must beEqualTo("hello, chris")
     }
 
     "escape mustaches by default" in {

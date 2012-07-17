@@ -1,11 +1,13 @@
 package com.gilt.handlebars
 
 import com.gilt.handlebars._
+import com.gilt.util.GuavaConversions._
 import Handlebars.Helper
 
 import collection.JavaConversions._
 
 import org.slf4j.{Logger, LoggerFactory}
+import com.google.common.base.Optional
 
 object HandlebarsVisitor {
   def apply[T](base: T, helpers: Map[String,Helper[T]] = Map.empty[String,Helper[T]]) = {
@@ -146,8 +148,13 @@ trait Context[T] {
 
   def invoke[A](method: java.lang.reflect.Method, args: List[A]): Option[Any] = {
     logger.debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
+
     try {
-      Some(method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*))
+      if (method.getReturnType.getCanonicalName == classOf[Optional[String]].getCanonicalName) {
+        method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*).asInstanceOf[Optional[Object]]
+      } else {
+        Some(method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*))
+      }
     } catch {
       case e: java.lang.IllegalArgumentException => None
     }

@@ -6,10 +6,15 @@ version := "1.0"
 
 scalaVersion := "2.9.1"
 
+crossPaths := false
+
 libraryDependencies ++= Seq(
   "org.specs2" %% "specs2" % "1.9" % "test",
-  "org.slf4j" % "slf4j-api" % "1.6.4"
+  "org.slf4j" % "slf4j-api" % "1.6.4",
+  "org.slf4j" % "slf4j-simple" % "1.6.4"
 )
+
+libraryDependencies += "com.google.guava" % "guava" % "12.0"
 
 resolvers ++= Seq(
   "Sonatype.org Snapshots" at "http://oss.sonatype.org/content/repositories/snapshots",
@@ -17,8 +22,6 @@ resolvers ++= Seq(
 )
 
 scalacOptions += "-unchecked"
-
-crossPaths := false
 
 publishMavenStyle := true
 
