@@ -69,6 +69,10 @@ class HandlebarsGrammarSpec extends Specification with ParserMatchers {
       parsers.root("{{#foo}} bar {{#baz}} nested! {{/baz}} bar {{/foo}}") must beASuccess
     }
 
+    "parse a section with a complex path" in {
+      parsers.root("{{# ../foo}} bar {{/ ../foo}}") must beASuccess
+    }
+
     "fail on a broken mustache" in {
       parsers.root("{{foo}") must beAFailure
     }
