@@ -70,7 +70,7 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
   def blockify(prefix: String) = mustachify(prefix ~> pad(mustachable)) >> {
     case (stache: Mustache) => {
       val path: Path = stache.value
-      pad(root) <~ openDelimiter <~ "/"<~ pad(path.head.value) <~ closeDelimiter ^^ { body =>
+      pad(root) <~ openDelimiter <~ "/"<~ pad(path.value.map(_.value).mkString("/")) <~ closeDelimiter ^^ { body =>
         (stache, body)
       }
     }
