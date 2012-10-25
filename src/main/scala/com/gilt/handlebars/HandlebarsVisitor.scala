@@ -24,27 +24,32 @@ class HandlebarsVisitor[T](context: Context[T],
   def visit(node: Node): String = node match {
     case Content(content) => content
     case Identifier(ident) => context.invoke(ident).getOrElse("").toString
-    case Path(path) => resolvePath(path).getOrElse(new RootContext("")).context.toString
+    case Path(path) => resolvePath(path).definedOrEmpty.context.toString
     case Comment(_) => ""
-    case Partial(partial) => compilePartial(partial).getOrElse("")
+    case Partial(partial) => compilePartial(partial)
     case Mustache(stache, params, escaped) => resolveMustache(stache, params, escape = escaped)
-    case Section(stache, value, inverted) => renderSection(stache.value, stache.parameters, value, inverted).getOrElse("")
+    case Section(stache, value, inverted) => renderSection(stache.value, stache.parameters, value, inverted)
     case Program(children) => children.map(visit).mkString
     case _ => toString
   }
 
-  def resolvePath(list: List[Identifier], args: List[Context[Any]] = Nil): Option[Context[Any]] = {
+  /**
+   * Attempt to resolve a path to a value within the current context.
+   * If the path cannot be resolved, return a Context with the special value Undefined,
+   * so that this result is propagated during parameter passing for helpers,
+   * and easy to deal with in section rendering.
+   * @list the list of identifier components that constitute the path
+   * @args arguments to pass to the path's value when interpreted as a helper.
+   */
+  def resolvePath(list: List[Identifier], args: List[Context[Any]] = Nil): Context[Any] = {
     val resolution = list.foldLeft(None: Option[Context[Any]]) { (someContext, identifier) =>
       someContext.orElse(Some(context)).flatMap { aContext =>
         if (identifier.value == "..") {
-          aContext match {
-            case ChildContext(_, parent) => Some(parent)
-            case _ => None
-          }
+          aContext.parent
         } else {
           aContext.context match {
-            case m:Map[_,_] => m.asInstanceOf[Map[String,_]].get(identifier.value).map(new ChildContext(_, aContext))
-            case _ => aContext.invoke(identifier.value, args.map(_.context)).map(new ChildContext(_, aContext))
+            case m:Map[_,_] => m.asInstanceOf[Map[String,_]].get(identifier.value).map(new ChildContext(_, Some(aContext)))
+            case _ => aContext.invoke(identifier.value, args.map(_.context)).map(new ChildContext(_, Some(aContext)))
           }
         }
       }
@@ -54,43 +59,101 @@ class HandlebarsVisitor[T](context: Context[T],
       logger.debug("Could not find identifier: '%s' in context. Searching in helpers.".format(list.map(_.value).mkString(".")))
       helpers.get(list.head.value) map { fn =>
         logger.debug("Found: '%s' in helpers.".format(list.head.value))
-        new ChildContext(fn(args.map(_.context), this, Some(context.context)), context)
+        HelperResult(fn(args.map(_.context), this, Some(context.context)), Some(context))
       }
-    } orElse {
+    } getOrElse {
       logger.warn("Unable to find value '%s' in context: '%s' or available helpers.".format(list.map(_.value).mkString("/"), context.context))
-      None
+      ChildContext(Undefined, Some(context))
     }
   }
 
   def resolveMustache(path: Path, parameters: List[Path], escape: Boolean = true): String = {
     val args = getArguments(parameters)
-    val lookup = resolvePath(path.value, args)
-    val resolution = lookup.getOrElse(new RootContext("")).context.toString
+    val lookup = resolvePath(path.value, args).definedOrEmpty
+    val resolution = lookup.context.toString
     if (escape)
       scala.xml.Utility.escape(resolution)
     else
       resolution
   }
 
-  def renderSection(path: Path, parameters: List[Path], program: Program, inverted: Boolean = false): Option[String] = {
-    resolvePath(path.value, getArguments(parameters)).map { block =>
-      val visitor = fn(block.context)(program)
-      logger.debug("Evaluated block as: %s".format(visitor))
-      visitor
-    } orElse {
-      if (inverted) {
-        logger.debug("Inverting the block for: %s".format(path))
-        Some(visit(program))
-      } else {
-        None
+  /**
+   * Render a section or helper block.
+   * @param path the name of the section or helper.
+   * @param parameters the list of paramter names to the helper (when it is a helper).
+   * @param program the block to be rendered.
+   * @param inverted when rendering a section, whether or it is inverted.
+   */
+  def renderSection(path: Path, parameters: List[Path], program: Program, inverted: Boolean = false): String = {
+    val result: String = {
+      /*
+       * Since the semantics of helpers differ somewhat from those of regular sections,
+       * it is useful to handle them as separate cases.
+       */
+      resolvePath(path.value, getArguments(parameters)) match {
+        case hr: HelperResult[_] => renderHelperBlock(hr, program)
+        case c => {
+          logger.debug("Inverting the block for: %s".format(path))
+          renderSimpleSection(c, program, inverted)
+        }
       }
+    }
+
+    logger.debug("Evaluated block as: %s".format(result))
+    result
+  }
+
+  /**
+   * Conditionally render a helper block, based on the truth value of the helper's output.
+   * @param hr the result of evaluating the helper function.
+   * @param program the block to render.
+   */
+  private def renderHelperBlock(hr: HelperResult[Any], program: Program): String = {
+    // follow Handlebrs.js behavior for "falsy" values
+    if (hr.truthValue) {
+      fn(hr.context)(program)
+    } else {
+      // could implement Handlebars.js' else-blocks in here
+      // with a change to Program and the Grammar
+      ""
     }
   }
 
-  def compilePartial(path: Path): Option[String] = {
-    resolvePath(path.value).map { context =>
-      this visit HandlebarsGrammar().scan(context.context.toString)
+  /**
+   * Render a section whose path was resolved within the current context, i.e. it is not a helper.
+   * @param context the result of evaluating the section name.
+   * @param program the block to render.
+   * @param inverted whether or not the section is inverted.
+   */
+  private def renderSimpleSection(context: Context[Any], program: Program, inverted: Boolean): String = {
+    // get the final context in which to render the section
+    val resolution = {
+      // to invert a section, simply invert the truth value of its context
+      if (inverted) {
+        ChildContext(!context.truthValue, context.parent)
+      } else {
+        context
+      }
     }
+
+    if (resolution.truthValue) {
+      // follow Mustache behavior for sections
+      // e.g. don't change context for true
+
+      // If the section is inverted, we never change contexts.
+      // Due to the way inversion works the context will either be
+      // true or false, so this logic should always be correct.
+      resolution.context match {
+        case true => visit(program)
+        case c => fn(c)(program)
+      }
+    } else {
+      ""
+    }
+  }
+
+  def compilePartial(path: Path): String = {
+    this visit HandlebarsGrammar().scan(resolvePath(path.value).context.toString)
   }
 
   def helpers: Map[String, (Seq[Any], HandlebarsVisitor[T], Option[T]) => Any] = {
@@ -100,13 +163,13 @@ class HandlebarsVisitor[T](context: Context[T],
   // Mimicking the options of Handlebarsjs
   def fn[A](value: A) = {
     logger.debug("Preparing Context for new value: %s".format(value))
-    val block = new ChildContext(value, context)
+    val block = new ChildContext(value, Some(context))
 
     (program: Program) => value match {
-      case list:Iterable[_] => list.map(i => createVisitor(new ChildContext(i, block)).visit(program)).mkString
-      case javaList:java.util.Collection[_] => javaList.map(i => createVisitor(new ChildContext(i, block)).visit(program)).mkString
+      case list:Iterable[_] => list.map(i => createVisitor(new ChildContext(i, Some(block))).visit(program)).mkString
+      case javaList:java.util.Collection[_] => javaList.map(i => createVisitor(new ChildContext(i, Some(block))).visit(program)).mkString
       case fun:Function1[_,_] => fun.asInstanceOf[Function1[Program,String]].apply(program).toString
-      case Some(v) => createVisitor(new ChildContext(v, block)).visit(program)
+      case Some(v) => createVisitor(new ChildContext(v, Some(block))).visit(program)
       case None => ""
       case _ => createVisitor(block).visit(program)
     }
@@ -117,30 +180,48 @@ class HandlebarsVisitor[T](context: Context[T],
   }
 
   private val builtinHelpers: Map[String, Helper[T]] = Map(
-    "with" -> ((context, options, parent) => options.fn(context)),
+    "with" -> ((context, options, parent) => options.fn(context.head)), 
     "noop" -> ((context, options, parent) => options.fn(parent)),
-    "if" -> ((context, options, parent) => context.head match {
-      case None => None
-      case false => None
-      case _ => options.fn(parent)
-    }),
-    "unless" -> ((context, options, parent) => context.head match {
-      case None => options.fn(parent)
-      case false => options.fn(parent)
-      case _ => None
-    }),
+    "if" -> ifHelper,
+    "unless" -> unlessHelper,
     "each" -> ((context, options, parent) => options.fn(context.head)),
     "this" -> ((context, options, parent) => parent.get)
   )
 
-  private def getArguments(paths: List[Path]) = paths flatMap {path => resolvePath(path.value)}
+  private def ifHelper[T](context: Seq[Any], options: HandlebarsVisitor[T], parent: Option[T]): Any = {
+    if (Context.truthValue(context.head)) {
+      options.fn(parent)
+    } else {
+      None
+    }
+  }
+
+  // invert the truth value of the context argument and defer to the ifHelper
+  private def unlessHelper[T](context: Seq[Any], options: HandlebarsVisitor[T], parent: Option[T]): Any = {
+    ifHelper(List(context.headOption.map(!Context.truthValue(_)).get), options, parent)
+  }
+
+  /**
+   * Map each path in the list to its resolution as a Context.
+   */
+  private def getArguments(paths: List[Path]): List[Context[Any]] = {
+    paths map {path => resolvePath(path.value)}
+  }
 
 }
 
-trait Context[T] {
+/**
+ * A wrapper around the literal context as referenced from templates.
+ */
+trait Context[+T] {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
+  // the wrapped context with which user code deals
   val context: T
+
+  // Option, since the root context does 
+  // not have a parent, but all others do
+  val parent: Option[Context[Any]] 
 
   def invoke[A](methodName: String, args: List[A] = Nil): Option[Any] = {
     getMethod(methodName, args).flatMap(invoke(_, args))
@@ -166,8 +247,47 @@ trait Context[T] {
     }
   }
 
+  // these are lazy vals instead of functions 
+  // since they don't take up too much space
+  // but shouldn't really need to be recomputed
+  // once used
+
+  lazy val definedOrEmpty: Context[Any] = {
+    ChildContext(
+      (context: Any) match {
+        case Undefined => ""
+        case _ => context
+      },
+      parent)
+  }
+
+  lazy val truthValue: Boolean = Context.truthValue(context: Any)
 }
 
-case class RootContext[T](context: T) extends Context[T]
+object Context {
+  // mimic "falsy" values of Handlebars.js, plus care about Options
+  def truthValue(a: Any): Boolean = a match {
+    case Undefined | None | false | Nil | null | "" => false
+    case _ => true
+  }
+}
 
-case class ChildContext[T, P](context: T, parent: Context[P]) extends Context[T]
+/**
+ * A context whose parent is always None
+ */
+case class RootContext[+T](context: T) extends Context[T] { val parent = None }
+
+/**
+ * A context whose parent should never be None
+ */
+case class ChildContext[+T](context: T, parent: Option[Context[Any]]) extends Context[T]
+
+/**
+ * A context that has been returned by a helper
+ */
+case class HelperResult[+T](context: T, parent: Option[Context[Any]]) extends Context[T]
+
+/**
+ * The value to which all undefined paths resolve.
+ */
+case class Undefined()
