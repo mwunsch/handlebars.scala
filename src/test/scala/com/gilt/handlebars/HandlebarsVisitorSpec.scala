@@ -150,6 +150,46 @@ class HandlebarsVisitorSpec extends Specification {
       visitor.visit(program) must beEqualTo("hello, chris")
     }
 
+    "visit a program and render a section, where the data is true" in {
+      val program = Handlebars.parse("{{#isTrue}}Hi!{{/isTrue}}")
+      val visitor = HandlebarsVisitor(new { val isTrue = true })
+      visitor.visit(program) must beEqualTo("Hi!")
+    }
+
+    "visit a program and render a scetion without changing context, where the data is true" in {
+      val program = Handlebars.parse("{{#value}}{{value}}{{/value}}")
+      val visitor = HandlebarsVisitor(new {
+          val value = true
+      })
+      visitor.visit(program) must beEqualTo("true")
+    }
+
+    "visit a program and omit a section, where the data is false" in {
+      val program = Handlebars.parse("{{#sayHello}}Bonjour, le monde!{{/sayHello}}")
+      val visitor = HandlebarsVisitor(new {
+        val sayHello = false
+      })
+      visitor.visit(program) must beEqualTo("")
+    }
+
+    "visit a program and omit a section, where the data is undefined" in {
+      val program = Handlebars.parse("{{#undefined}}Hi!{{/undefined}}")
+      val visitor = HandlebarsVisitor(new {})
+      visitor.visit(program) must beEqualTo("")
+    }
+
+    "visit a program and omit a section, where the data is None" in {
+      val program = Handlebars.parse("{{#doIt}}Hi!{{/doIt}}")
+      val visitor = HandlebarsVisitor(new { val doIt = None })
+      visitor.visit(program) must beEqualTo("")
+    }
+
+    "visit a program and omit a section, where the data is Nil" in {
+      val program = Handlebars.parse("{{#doIt}}Hi!{{/doIt}}")
+      val visitor = HandlebarsVisitor(new { val doIt = Nil })
+      visitor.visit(program) must beEqualTo("")
+    }
+
     "escape mustaches by default" in {
       val program = Handlebars.parse("{{greeting}}, world.")
       val visitor = HandlebarsVisitor(new {
@@ -178,6 +218,38 @@ class HandlebarsVisitorSpec extends Specification {
       val program = Handlebars.parse("{{^absense}}Nothing to see here.{{/absense}}")
       val visitor = HandlebarsVisitor("A Context[String]")
       visitor.visit(program) must beEqualTo("Nothing to see here.")
+    }
+
+
+    "visit a program and render an inverted section, where the data is false" in {
+      val halQuote = "I'm sorry, Dave. I'm afraid I can't do that."
+      val program = Handlebars.parse("{{^canDoThat}}" + halQuote + "{{/canDoThat}}")
+      val visitor = HandlebarsVisitor(new { val canDoThat = false })
+      visitor.visit(program) must beEqualTo(halQuote)
+    }
+
+    "visit a program and render an inverted section, where the data is None" in {
+      val program = Handlebars.parse("{{^option}}Hi!{{/option}}")
+      val visitor = HandlebarsVisitor(new { val option = None })
+      visitor.visit(program) must beEqualTo("Hi!")
+    }
+
+    "visit a program and render an inverted section, where the data is Nil" in {
+      val program = Handlebars.parse("{{^stuff}}Hi!{{/stuff}}")
+      val visitor = HandlebarsVisitor(new { val stuff = Nil })
+      visitor.visit(program) must beEqualTo("Hi!")
+    }
+
+    "visit a program and omit an inverted section, where the data is true" in {
+      val program = Handlebars.parse("{{^isTrue}}Hi!{{/isTrue}}")
+      val visitor = HandlebarsVisitor(new { val isTrue = true })
+      visitor.visit(program) must beEqualTo("")
+    }
+
+    "visit a program and omit an inverted section, where the data is defined" in {
+      val program = Handlebars.parse("{{^defined}}Hi!{{/defined}}")
+      val visitor = HandlebarsVisitor(new { val defined = new {}})
+      visitor.visit(program) must beEqualTo("")
     }
 
     "visit a program and resolve a helper mustache: {{helper argument}}" in {
@@ -283,6 +355,54 @@ class HandlebarsVisitorSpec extends Specification {
         val people = Seq("Yehuda Katz","Alan Johnson","Charles Johnson")
       }, helpers)
       visitor.visit(program) must beEqualTo("Yehuda Katz")
+    }
+
+    "visit a program and render a block when the argument of #if is true" in {
+      val program = Handlebars.parse("{{#if doIt}}Hi!{{/if}}")
+      val visitor = HandlebarsVisitor(new { val doIt = true })
+      visitor.visit(program) must beEqualTo("Hi!")
+    }
+
+    "visit a program and omit a block when the argument of #if is false" in {
+      val program = Handlebars.parse("{{#if doIt}}Hi!{{/if}}")
+      val visitor = HandlebarsVisitor(new { val doIt = false })
+      visitor.visit(program) must beEqualTo("")
+    }
+
+    "visit a program and omit a block when the argument of #if is undefined" in {
+      val program = Handlebars.parse("{{#if doIt}}Hi!{{/if}}")
+      val visitor = HandlebarsVisitor(new {})
+      visitor.visit(program) must beEqualTo("")
+    }
+
+    "visit a program and omit a block when the argument ot #if is None" in {
+      val program = Handlebars.parse("{{#if doIt}}Hi!{{/if}}")
+      val visitor = HandlebarsVisitor(new { val doIt = None })
+      visitor.visit(program) must beEqualTo("")
+    }
+
+    "visit a program and omit a block when the argument of #unless is true" in {
+      val program = Handlebars.parse("{{#unless doIt}}Hi!{{/unless}}")
+      val visitor = HandlebarsVisitor(new { val doIt = true })
+      visitor.visit(program) must beEqualTo("")
+    }
+
+    "visit a program and render a block when the argument of #unless is false" in {
+      val program = Handlebars.parse("{{#unless doIt}}Hi!{{/unless}}")
+      val visitor = HandlebarsVisitor(new { val doIt = false })
+      visitor.visit(program) must beEqualTo("Hi!")
+    }
+
+    "visit a program and render a block when the argument of #unless is undefined" in {
+      val program = Handlebars.parse("{{#unless doIt}}Hi!{{/unless}}")
+      val visitor = HandlebarsVisitor(new {})
+      visitor.visit(program) must beEqualTo("Hi!")
+    }
+
+    "visit a program and render a block when the argument ot #unless is None" in {
+      val program = Handlebars.parse("{{#unless doIt}}Hi!{{/unless}}")
+      val visitor = HandlebarsVisitor(new { val doIt = None })
+      visitor.visit(program) must beEqualTo("Hi!")
     }
   }
 
