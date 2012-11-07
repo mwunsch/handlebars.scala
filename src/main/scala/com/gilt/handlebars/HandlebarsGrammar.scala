@@ -7,6 +7,7 @@ abstract class Node extends Positional
 
 case class Content(value: String) extends Node
 case class Identifier(value: String) extends Node
+case class Inversion extends Node
 case class Path(value: List[Identifier]) extends Node {
   def head: Identifier = value.head
   def tail: List[Identifier] = value.tail
@@ -17,7 +18,7 @@ case class Mustache(value: Path,
     parameters: List[Path] = Nil,
     escaped: Boolean = true) extends Node
 case class Section(name: Mustache, value: Program, inverted: Boolean = false) extends Node
-case class Program(value: List[Node]) extends Node
+case class Program(value: List[Node], inverse: Option[Program] = None) extends Node
 
 case class InvalidSyntaxException(msg: String, pos: Position) extends RuntimeException(msg)
 
@@ -36,7 +37,7 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
   def root: Parser[Program] = rep(content | statement) ^^ {Program(_)}
 
-  def statement = mustache | unescapedMustache | section | inverseSection | comment | partial
+  def statement = not(elseStache) ~> mustache | unescapedMustache | section | inverseSection | comment | partial
 
   def content =
       positioned(rep1(not(openDelimiter | closeDelimiter) ~> ".|\r|\n".r) ^^ {
@@ -59,6 +60,8 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
   def mustache = mustachify(pad(mustachable))
 
+  def elseStache = mustachify(pad("else" | "^") ^^ { literal => new Inversion()})
+
   def mustachable = helper ^^ { case id ~ list => Mustache(id, list) } | path ^^ {Mustache(_)}
 
   def helper = path ~ rep1(rep1(whiteSpace) ~> path)
@@ -70,11 +73,13 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
   def blockify(prefix: String) = mustachify(prefix ~> pad(mustachable)) >> {
     case (stache: Mustache) => {
       val path: Path = stache.value
-      pad(root) <~ openDelimiter <~ "/"<~ pad(path.value.map(_.value).mkString("/")) <~ closeDelimiter ^^ { body =>
+      pad(elseBlock | root) <~ openDelimiter <~ "/"<~ pad(path.value.map(_.value).mkString("/")) <~ closeDelimiter ^^ { body =>
         (stache, body)
       }
     }
   }
+
+  def elseBlock = (root ~ elseStache ~ root) ^^ { case (prog ~ stache ~ inversion) => Program(prog.value, Some(inversion)) }
 
   def mustachify[T <: Node](parser: Parser[T]): Parser[T] =
       positioned(openDelimiter ~> parser <~ closeDelimiter)

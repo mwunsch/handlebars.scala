@@ -73,6 +73,14 @@ class HandlebarsGrammarSpec extends Specification with ParserMatchers {
       parsers.root("{{# ../foo}} bar {{/ ../foo}}") must beASuccess
     }
 
+    "parse a section with an {{else}} block" in {
+      parsers.root("{{#if foo}} bar {{else}} baz {{/if}}") must haveSuccessResult("Section")
+    }
+
+    "fail on {{else}} blocks when not in a section" in {
+      parsers.root("Hey there {{else}} what was that?") must beAFailure
+    }
+
     "fail on a broken mustache" in {
       parsers.root("{{foo}") must beAFailure
     }

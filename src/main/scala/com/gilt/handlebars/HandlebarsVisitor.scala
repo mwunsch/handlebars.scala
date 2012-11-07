@@ -29,13 +29,13 @@ class HandlebarsVisitor[T](context: Context[T],
     case Partial(partial) => compilePartial(partial)
     case Mustache(stache, params, escaped) => resolveMustache(stache, params, escape = escaped)
     case Section(stache, value, inverted) => renderSection(stache.value, stache.parameters, value, inverted)
-    case Program(children) => children.map(visit).mkString
+    case Program(children, _) => children.map(visit).mkString
     case _ => toString
   }
 
   /**
    * Attempt to resolve a path to a value within the current context.
-   * If the path cannot be resolved, return a Context with the special value Undefined,
+   * If the path cannot be resolved, return a Context with the special value UndefinedValue,
    * so that this result is propagated during parameter passing for helpers,
    * and easy to deal with in section rendering.
    * @list the list of identifier components that constitute the path
@@ -63,7 +63,7 @@ class HandlebarsVisitor[T](context: Context[T],
       }
     } getOrElse {
       logger.warn("Unable to find value '%s' in context: '%s' or available helpers.".format(list.map(_.value).mkString("/"), context.context))
-      ChildContext(Undefined, Some(context))
+      ChildContext(UndefinedValue, Some(context))
     }
   }
 
@@ -115,7 +115,8 @@ class HandlebarsVisitor[T](context: Context[T],
     } else {
       // could implement Handlebars.js' else-blocks in here
       // with a change to Program and the Grammar
-      ""
+      // ""
+      program.inverse.map(fn(context.context)(_)).getOrElse("")
     }
   }
 
@@ -148,7 +149,7 @@ class HandlebarsVisitor[T](context: Context[T],
         case c => fn(c)(program)
       }
     } else {
-      ""
+      program.inverse.map(fn(resolution.context)(_)).getOrElse("")
     }
   }
 
@@ -180,7 +181,7 @@ class HandlebarsVisitor[T](context: Context[T],
   }
 
   private val builtinHelpers: Map[String, Helper[T]] = Map(
-    "with" -> ((context, options, parent) => options.fn(context.head)), 
+    "with" -> ((context, options, parent) => options.fn(context.head)),
     "noop" -> ((context, options, parent) => options.fn(parent)),
     "if" -> ifHelper,
     "unless" -> unlessHelper,
@@ -219,9 +220,9 @@ trait Context[+T] {
   // the wrapped context with which user code deals
   val context: T
 
-  // Option, since the root context does 
+  // Option, since the root context does
   // not have a parent, but all others do
-  val parent: Option[Context[Any]] 
+  val parent: Option[Context[Any]]
 
   def invoke[A](methodName: String, args: List[A] = Nil): Option[Any] = {
     getMethod(methodName, args).flatMap(invoke(_, args))
@@ -247,7 +248,7 @@ trait Context[+T] {
     }
   }
 
-  // these are lazy vals instead of functions 
+  // these are lazy vals instead of functions
   // since they don't take up too much space
   // but shouldn't really need to be recomputed
   // once used
@@ -255,7 +256,7 @@ trait Context[+T] {
   lazy val definedOrEmpty: Context[Any] = {
     ChildContext(
       (context: Any) match {
-        case Undefined => ""
+        case UndefinedValue => ""
         case _ => context
       },
       parent)
@@ -267,7 +268,7 @@ trait Context[+T] {
 object Context {
   // mimic "falsy" values of Handlebars.js, plus care about Options
   def truthValue(a: Any): Boolean = a match {
-    case Undefined | None | false | Nil | null | "" => false
+    case UndefinedValue | None | false | Nil | null | "" => false
     case _ => true
   }
 }
@@ -290,4 +291,4 @@ case class HelperResult[+T](context: T, parent: Option[Context[Any]]) extends Co
 /**
  * The value to which all undefined paths resolve.
  */
-case class Undefined()
+case class UndefinedValue

@@ -220,7 +220,6 @@ class HandlebarsVisitorSpec extends Specification {
       visitor.visit(program) must beEqualTo("Nothing to see here.")
     }
 
-
     "visit a program and render an inverted section, where the data is false" in {
       val halQuote = "I'm sorry, Dave. I'm afraid I can't do that."
       val program = Handlebars.parse("{{^canDoThat}}" + halQuote + "{{/canDoThat}}")
@@ -251,6 +250,8 @@ class HandlebarsVisitorSpec extends Specification {
       val visitor = HandlebarsVisitor(new { val defined = new {}})
       visitor.visit(program) must beEqualTo("")
     }
+
+
 
     "visit a program and resolve a helper mustache: {{helper argument}}" in {
       val program = Handlebars.parse("{{greeting addressee}}.")
@@ -403,6 +404,22 @@ class HandlebarsVisitorSpec extends Specification {
       val program = Handlebars.parse("{{#unless doIt}}Hi!{{/unless}}")
       val visitor = HandlebarsVisitor(new { val doIt = None })
       visitor.visit(program) must beEqualTo("Hi!")
+    }
+
+    "visit a program and render a block, with an else clause" in {
+      val program = Handlebars.parse("{{#people}}{{name}}{{^}}{{../none}}{{/people}}")
+      val visitor = HandlebarsVisitor(new {
+        val none = "No people"
+      })
+      visitor.visit(program) must beEqualTo("No people")
+    }
+
+    "visit a program and render a block if helper, with an else clause" in {
+      val program = Handlebars.parse("{{#if people}}{{name}}{{^}}{{none}}{{/if}}")
+      val visitor = HandlebarsVisitor(new {
+        val none = "No people"
+      })
+      visitor.visit(program) must beEqualTo("No people")
     }
   }
 
