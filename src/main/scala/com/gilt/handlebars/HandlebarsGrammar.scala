@@ -37,7 +37,7 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
   def root: Parser[Program] = rep(content | statement) ^^ {Program(_)}
 
-  def statement = not(elseStache) ~> mustache | unescapedMustache | section | inverseSection | comment | partial
+  def statement = mustache | unescapedMustache | section | inverseSection | comment | partial
 
   def content =
       positioned(rep1(not(openDelimiter | closeDelimiter) ~> ".|\r|\n".r) ^^ {
@@ -58,9 +58,9 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
       mustachify("{" ~> pad(path) <~ "}" ^^ {Mustache(_, escaped=false)}) |
       mustachify("&" ~> pad(path) ^^ {Mustache(_, escaped=false)})
 
-  def mustache = mustachify(pad(mustachable))
+  def mustache = not(elseStache) ~> mustachify(pad(mustachable))
 
-  def elseStache = mustachify(pad("else" | "^") ^^ { literal => new Inversion()})
+  def elseStache = mustachify(pad("else" | "^") ^^ { _ => new Inversion()})
 
   def mustachable = helper ^^ { case id ~ list => Mustache(id, list) } | path ^^ {Mustache(_)}
 
