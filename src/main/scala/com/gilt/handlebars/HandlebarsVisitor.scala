@@ -215,10 +215,14 @@ class HandlebarsVisitor[T](context: Context[T],
  * A wrapper around the literal context as referenced from templates.
  */
 trait Context[+T] {
+  import java.lang.reflect.Method
+
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
   // the wrapped context with which user code deals
   val context: T
+
+  val methodsCache: Map[String, Method] = (context.getClass.getMethods map { m => (m.getName + m.getParameterTypes.length, m) }).toMap
 
   // Option, since the root context does
   // not have a parent, but all others do
@@ -242,11 +246,7 @@ trait Context[+T] {
     }
   }
 
-  def getMethod[A](name: String, args: List[A] = Nil) = {
-    context.getClass.getMethods find { method =>
-      method.getName == name && method.getParameterTypes.length == args.length
-    }
-  }
+  def getMethod[A](name: String, args: List[A] = Nil) = methodsCache.get(name + args.length)
 
   // these are lazy vals instead of functions
   // since they don't take up too much space
