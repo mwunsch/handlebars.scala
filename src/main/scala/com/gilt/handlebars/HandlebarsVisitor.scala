@@ -137,23 +137,40 @@ class HandlebarsVisitor[T](context: Context[T],
 
 }
 
+object Context {
+  val logger: Logger = LoggerFactory.getLogger(getClass)
+  // TODO val mathodsCache: Map[String, Method] = (context.getClass.getMethods map { m => (m.getName + m.getParameterTypes.length, m) }).toMap
+}
+
+object ContextCache {
+  import java.lang.reflect.Method
+  val cache = scala.collection.mutable.Map.empty[String, scala.collection.immutable.Map[String, Method]]
+  def putIfAbsent(contextClazz: java.lang.Class[_]) { // TODO use a concurrent hash map
+    if (!cache.contains(contextClazz.getCanonicalName)) {
+      val methodsCache: Map[String, Method] = (contextClazz.getMethods map { m => (m.getName + m.getParameterTypes.length, m) }).toMap
+      cache ++= Map(contextClazz.getCanonicalName ->  methodsCache)
+    }
+  }
+}
+
 trait Context[T] {
   import java.lang.reflect.Method
-
-  private val logger: Logger = LoggerFactory.getLogger(getClass)
+  import Context._
+  import ContextCache._
 
   val context: T
-  val methodsCache: Map[String, Method] = (context.getClass.getMethods map { m => (m.getName + m.getParameterTypes.length, m) }).toMap
 
-  def invoke[A](methodName: String, args: List[A] = Nil): Option[Any] = {
-    getMethod(methodName, args).flatMap(invoke(_, args))
-  }
+  putIfAbsent(context.getClass)
+
+  def invoke[A](methodName: String, args: List[A] = Nil): Option[Any] = getMethod(methodName, args) flatMap { m => invoke(m, args) }
 
   def invoke[A](method: java.lang.reflect.Method, args: List[A]): Option[Any] = {
-    logger.debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
+    if (logger.isDebugEnabled()) {
+      logger.debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
+    }
 
     try {
-      if (method.getReturnType.getCanonicalName == classOf[Optional[String]].getCanonicalName) {
+      if (method.getReturnType == classOf[Optional[String]]) {
         method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*).asInstanceOf[Optional[Object]]
       } else {
         Some(method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*))
@@ -163,7 +180,15 @@ trait Context[T] {
     }
   }
 
-  def getMethod[A](name: String, args: List[A] = Nil) = methodsCache.get(name + args.length)
+  def getMethod[A](name: String, args: List[A] = Nil) = cache.get(context.getClass.getCanonicalName) flatMap { cctx =>
+    val res = cctx.get(name + args.size)
+    if (res.isEmpty) {
+      println("Trying to retrieve: " + (name + args.size) + " and getting: " + cctx.get(name + args.size))
+      println("Cache was " + cache)
+    }
+
+    cctx.get(name + args.size)
+  }
 }
 
 case class RootContext[T](context: T) extends Context[T]

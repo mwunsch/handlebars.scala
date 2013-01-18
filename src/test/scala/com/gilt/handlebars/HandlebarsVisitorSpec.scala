@@ -6,6 +6,7 @@ import com.google.common.base.Optional
 
 class HandlebarsVisitorSpec extends Specification {
   "A Handlebars Visitor" should {
+
     "visit a program with only content" in {
       val program = Handlebars.parse("bar")
       val visitor = HandlebarsVisitor("A Context[String]")
@@ -325,7 +326,6 @@ class HandlebarsVisitorSpec extends Specification {
       val context = new RootContext(hello)
       context.invoke("greeting", List("World")) must beSome("Hello, World")
     }
-
   }
 
 }

@@ -1,0 +1,157 @@
+<header class="page-header">
+  <div class="navigation group full-width">
+    <h1 class="masthead"><a class="gilt-logo {{#if webUser.isNoir}}noir{{/if}}" href="/sale/{{store.key}}">Gilt</a></h1>
+
+    <nav class="primary-nav group">
+      {{#tabs}}
+        <ul class="store-nav menu">
+        {{#tabs}}
+          <li class="nav-item expandable-nav expandable">
+           {{#if url.isDefined}}
+             <a class="nav-item-label" href="{{url.get}}">{{title}}</a>
+           {{/if}}
+           {{#if url.isEmpty}}
+             <span class="nav-item-label">{{title}}</span>
+           {{/if}}
+            <div class="nav-menu has-{{columns.length}}-sections">
+              {{#columns}}
+                  {{#sections}}
+                    <section class="nav-section">
+                      {{#header}}
+                        <h1 class="section-title">{{this}}</h1>
+                      {{/header}}
+                      <ul>
+                        {{#elements}}
+                        <li class="nav-topic nav-topic-{{urlKey}}">
+                            <a href="{{relativeUrl}}" class="topic-link">{{name}}</a>
+                        </li>
+                        {{/elements}}
+                      </ul>
+                    </section>
+                  {{/sections}}
+              {{/columns}}
+              {{#footer}}
+                <a class="nav-footer" href="{{this.url}}">{{this.label}}</a>
+              {{/footer}}
+            </div>
+          </li>
+        {{/tabs}}
+      </ul>
+      {{/tabs}}
+
+      {{#searchBox}}
+      <div class="search-container">
+        <form class="search search-form group {{#unless enableGlobalSearch}} blur closeable {{/unless}}" action="/search">
+          <button class="search-submit" type="submit">Search</button>
+          {{#unless enableGlobalSearch}}
+              <div class="store-selection">
+                <button class="selected-store"><span class="store-text">{{store.displayName}}</span>
+                  <span class="select-arrow">Dropdown</span>
+                </button>
+
+                <select class="store-input" name="q.store">
+                  {{#stores}}
+                    <option value="{{key}}" {{#if isCurrent}} selected {{/if}}>{{displayName}}</option>
+                  {{/stores}}
+                </select>
+              </div>
+          {{/unless}}
+          <input class="search-input" type="search" name="q.query" tabindex="1" autocomplete="off" placeholder="Search"  />
+
+        </form>
+      </div>
+      {{/searchBox}}
+    </nav>
+
+    {{#userAccountNav}}
+      <nav class="site-tools group">
+        <ul class="meta-nav menu">
+          {{#if webUser.isRegistered}}
+            <li class="expandable account meta-action">
+              <a class="meta-nav-item" data-tab-name="Account" href="/account">
+                {{#if displayFirstName}}
+                  {{#if webUser.isNoir}}
+                    Noir Member
+                  {{/if}}
+                  {{webUser.getFirstName}}'s
+                {{/if}} Account
+              </a>
+              <div class="account-dropdown-arrow"></div>
+              <ul class="meta-expansion">
+                  <li><a href="/account/order" title="Orders"><span class="icon order">+</span> Orders</a></li>
+                  <li><a href="/account/return"><span class="icon return">+</span> Returns</a></li>
+                  <li><a href="/wl"><span class="icon waitlist">+</span> Waitlist</a></li>
+                  <li><a href="/account/credits"><span class="icon credit">+</span> Account Credits</a></li>
+                  <li><a href="/account/update"><span class="icon settings">+</span> Account Settings</a></li>
+                  <li><a href="/account/invite"><span class="icon invite">+</span> Invite Friends, Get $25</a></li>
+                  <li><a href="/session/logout?return_url=/"><span class="icon logout">+</span> (Sign Out)</a></li>
+              </ul>
+            </li>
+          {{/if}}
+
+          {{#if webUser.isAnonymous}}
+            <li class="login meta-action"><a href="/login" class="meta-nav-item login-link" data-tab-name="Login">Sign In</a></li>
+            <li class="register meta-action"><a href="/account/register" class="meta-nav-item register-link" data-tab-name="Register">Register</a></li>
+          {{/if}}
+
+          {{#loyaltyUser}}
+            <li class="meta-action loyalty-item" id="loyalty-item"><a href="/insider" class="meta-nav-item loyalty-nav-link">{{spendablePoints}} points</a></li>
+          {{/loyaltyUser}}
+
+          {{#if displayCountrySelector}}
+            {{#countries}}
+            <li class="expandable country-dropdown meta-action">
+              <div class="country-button">
+                <span class="selected-country">
+                  <span class="flag-icon flag-{{../intlPreferences.get.getShipToCountry.getIso3166Two}}">{{../intlPreferences.get.getShipToCountry.getIso3166Two}}</span>
+                </span>
+              </div>
+              <div class="account-dropdown-arrow"></div>
+              <form class="country-selector-form" action="." method="GET">
+                <menu class="meta-expansion country-list">
+                  <ol class="country-regions-list">
+                    {{#regions}}
+                    <li class="region-group">
+                      <label class="country-target highlight" data-country-group-id="{{region.getCode}}">{{region.getDisplayName}}</label>
+                    </li>
+                    {{/regions}}
+                  </ol>
+                  <ol class="country-countries-list">
+                    {{#regions}}
+                      <li class="country-group" data-country-group-id="{{region.getCode}}">{{region.getDisplayName}}</li>
+                      {{#countries}}
+                      <li class="country-option">
+                        <label class="country-target trigger">
+                          <span><span class="flag-icon flag-{{getIso3166Two.getCode}}"></span>{{getName}}</span>
+                          <input class="country-value" type="checkbox" name="{{getName}}" value="{{getIso3166Two.getCode}}" data-country-id="{{getCountryId}}"/>
+                        </label>
+                      </li>
+                      {{/countries}}
+                    {{/regions}}
+                  </ol>
+                </menu>
+              </form>
+            </li>
+            {{/countries}}
+          {{/if}}
+
+          <li class="need-help meta-action"><a href="/support" class="meta-nav-item" data-tab-name="Support">Need Help?</a></li>
+
+          {{#if webUser.isRegistered}}
+            <li class="invite-friends meta-action"><a href="/account/invite" class="meta-nav-item" data-tab-name="Invite Friends">Invite Friends, Get $25</a></li>
+          {{/if}}
+
+          <li class="cart meta-action">
+            <a href="#" class="gilt-cart-open-link cart-nav-link cart-nav-label">Cart</a>
+            <a href="#" class="gilt-cart-open-link cart-page-count-checkout lib-button lib-button-A lib-button-small">{{cartCount}}</a>
+
+            {{#if displayCart}}
+            <a href="/checkout" class="cart-page-count-checkout cart-util-checkout lib-button lib-button-A lib-button-small">Checkout</a>
+            {{/if}}
+          </li>
+        </ul>
+      </nav>
+    {{/userAccountNav}}
+  </div>
+</header>
+
