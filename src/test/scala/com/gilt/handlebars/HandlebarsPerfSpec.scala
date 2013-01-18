@@ -17,7 +17,6 @@ class HandlebarsPerfSpec extends Specification {
       // val primaryNav = handlebars(context)
       // println(primaryNav)
 
-/*
       println("==== WARMING UP ....")
 
       for (i <- 0 to count / 10) { // warmup
@@ -41,7 +40,7 @@ class HandlebarsPerfSpec extends Specification {
 
       val avg = totalRuntime / count
       println("==== DONE --> AVG TIME: %s ms. Total size: %s".format(avg, totalSize))
-*/
+
       success
 
     }
