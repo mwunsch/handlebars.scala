@@ -8,18 +8,24 @@ import collection.JavaConversions._
 
 import org.slf4j.{Logger, LoggerFactory}
 import com.google.common.base.Optional
+import java.lang.reflect.Method
 
 object HandlebarsVisitor {
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
   def apply[T](base: T, helpers: Map[String,Helper[T]] = Map.empty[String,Helper[T]]) = {
     new HandlebarsVisitor(new RootContext(base), helpers)
   }
 }
 
-class HandlebarsVisitor[T](context: Context[T],
-    additionalHelpers: Map[String, Helper[T]] = Map.empty[String, Helper[T]]) {
+class HandlebarsVisitor[T](
+  context: Context[T],
+  additionalHelpers: Map[String, Helper[T]] = Map.empty[String, Helper[T]]
+) {
+  import HandlebarsVisitor._
 
-  private val logger: Logger = LoggerFactory.getLogger(getClass)
-  logger.debug("Created a visitor with context: %s".format(context.context))
+  if (logger.isDebugEnabled) {
+    logger.debug("Created a visitor with context: %s".format(context.context))
+  }
 
   def visit(node: Node): String = node match {
     case Content(content) => content
@@ -51,9 +57,13 @@ class HandlebarsVisitor[T](context: Context[T],
     }
 
     resolution orElse {
-      logger.debug("Could not find identifier: '%s' in context. Searching in helpers.".format(list.map(_.value).mkString(".")))
+      if (logger.isDebugEnabled) {
+        logger.debug("Could not find identifier: '%s' in context. Searching in helpers.".format(list.map(_.value).mkString(".")))
+      }
       helpers.get(list.head.value) map { fn =>
-        logger.debug("Found: '%s' in helpers.".format(list.head.value))
+        if (logger.isDebugEnabled) {
+          logger.debug("Found: '%s' in helpers.".format(list.head.value))
+        }
         new ChildContext(fn(args.map(_.context), this, Some(context.context)), context)
       }
     } orElse {
@@ -75,11 +85,15 @@ class HandlebarsVisitor[T](context: Context[T],
   def renderSection(path: Path, parameters: List[Path], program: Program, inverted: Boolean = false): Option[String] = {
     resolvePath(path.value, getArguments(parameters)).map { block =>
       val visitor = fn(block.context)(program)
-      logger.debug("Evaluated block as: %s".format(visitor))
+      if (logger.isDebugEnabled) {
+        logger.debug("Evaluated block as: %s".format(visitor))
+      }
       visitor
     } orElse {
       if (inverted) {
-        logger.debug("Inverting the block for: %s".format(path))
+        if (logger.isDebugEnabled) {
+          logger.debug("Inverting the block for: %s".format(path))
+        }
         Some(visit(program))
       } else {
         None
@@ -99,7 +113,9 @@ class HandlebarsVisitor[T](context: Context[T],
 
   // Mimicking the options of Handlebarsjs
   def fn[A](value: A) = {
-    logger.debug("Preparing Context for new value: %s".format(value))
+    if (logger.isDebugEnabled) {
+      logger.debug("Preparing Context for new value: %s".format(value))
+    }
     val block = new ChildContext(value, context)
 
     (program: Program) => value match {
@@ -137,20 +153,56 @@ class HandlebarsVisitor[T](context: Context[T],
 
 }
 
-trait Context[T] {
-  import java.lang.reflect.Method
+object ContextClassCache {
+  @volatile
+  var cache: Map[Class[_], Map[String, Method]] = Map.empty
 
+  val lock = new java.util.concurrent.locks.ReentrantReadWriteLock
+
+  /**
+   * Returns a map containing the methods of the class - the reflection calls to generate this map
+   * have been memoized so this should be performant. The method uses a read-write lock to ensure thread-safe
+   * access to the map.
+   *
+   * @param clazz
+   * @return
+   */
+  def getMethods(clazz: Class[_]): Map[String, Method] = {
+    lock.readLock.lock
+    val methodsOpt = cache.get(clazz)
+    lock.readLock.unlock
+
+    if (methodsOpt.isDefined) {
+      methodsOpt.get
+    } else {
+      val methods: Map[String, Method] = (clazz.getMethods map { m => (m.getName + m.getParameterTypes.length, m) }).toMap
+      lock.writeLock.lock
+      cache = cache + (clazz -> methods)
+      lock.writeLock.unlock
+      methods
+    }
+  }
+}
+
+object Context {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
+}
+
+trait Context[T] {
+  import ContextClassCache._
+
+  import Context._
 
   val context: T
-  val methodsCache: Map[String, Method] = (context.getClass.getMethods map { m => (m.getName + m.getParameterTypes.length, m) }).toMap
 
   def invoke[A](methodName: String, args: List[A] = Nil): Option[Any] = {
     getMethod(methodName, args).flatMap(invoke(_, args))
   }
 
   def invoke[A](method: java.lang.reflect.Method, args: List[A]): Option[Any] = {
-    logger.debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
+    if (logger.isDebugEnabled) {
+      logger.debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
+    }
 
     try {
       if (method.getReturnType.getCanonicalName == classOf[Optional[String]].getCanonicalName) {
@@ -163,7 +215,7 @@ trait Context[T] {
     }
   }
 
-  def getMethod[A](name: String, args: List[A] = Nil) = methodsCache.get(name + args.length)
+  def getMethod[A](name: String, args: List[A] = Nil) = getMethods(context.getClass).get(name + args.length)
 }
 
 case class RootContext[T](context: T) extends Context[T]
