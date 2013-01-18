@@ -8,6 +8,7 @@ import collection.JavaConversions._
 
 import org.slf4j.{Logger, LoggerFactory}
 import com.google.common.base.Optional
+import java.lang.reflect.Method
 
 object HandlebarsVisitor {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
@@ -152,16 +153,42 @@ class HandlebarsVisitor[T](
 
 }
 
+object ContextClassCache {
+  @volatile var cache: Map[Class[_], Map[String, Method]] = Map.empty
+
+  val lock = new java.util.concurrent.locks.ReentrantReadWriteLock
+
+  /**
+   * Returns a map containing the methods of the class - the reflection calls to generate this map
+   * have been memoized so this should be performant. The method uses a read-write lock to ensure thread-safe
+   * access to the map.
+   */
+  def getMethods(clazz: Class[_]): Map[String, Method] = {
+    lock.readLock.lock
+    val methodsOpt = cache.get(clazz)
+    lock.readLock.unlock
+
+    if (methodsOpt.isDefined) {
+      methodsOpt.get
+    } else {
+      val methods: Map[String, Method] = (clazz.getMethods map { m => (m.getName + m.getParameterTypes.length, m) }).toMap
+      lock.writeLock.lock
+      cache = cache + (clazz -> methods)
+      lock.writeLock.unlock
+      methods
+    }
+  }
+}
+
 object Context {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 }
 
 trait Context[T] {
-  import java.lang.reflect.Method
+  import ContextClassCache._
   import Context._
 
   val context: T
-  val methodsCache: Map[String, Method] = (context.getClass.getMethods map { m => (m.getName + m.getParameterTypes.length, m) }).toMap
 
   def invoke[A](methodName: String, args: List[A] = Nil): Option[Any] = {
     getMethod(methodName, args).flatMap(invoke(_, args))
@@ -183,7 +210,7 @@ trait Context[T] {
     }
   }
 
-  def getMethod[A](name: String, args: List[A] = Nil) = methodsCache.get(name + args.length)
+  def getMethod[A](name: String, args: List[A] = Nil) = getMethods(context.getClass).get(name + args.length)
 }
 
 case class RootContext[T](context: T) extends Context[T]
