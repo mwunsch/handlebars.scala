@@ -89,14 +89,14 @@ class HandlebarsPerfSpec extends Specification {
         val context = generateRndFriends(rndGen)
         handlebars(context).size
       }
-      
+
       val poison = Friends(Nil)
       val source = new ArrayBlockingQueue[Friends](1024)
       val threads = Runtime.getRuntime.availableProcessors()
       val latch = new CountDownLatch(threads)
       val executor = Executors.newFixedThreadPool(threads + 1)
       val count = 50000
-      
+
       executor.submit(new Runnable {
         override def run() {
           for (i <- 1 to count) {
@@ -105,7 +105,7 @@ class HandlebarsPerfSpec extends Specification {
           source.put(poison)
         }
       })
-      
+
       case class Stats(n: Long, sum: Long, sumSq: Double)
       object PoisonStats extends Stats(0,0,0)
       val sink = new LinkedBlockingQueue[Stats]
@@ -139,7 +139,7 @@ class HandlebarsPerfSpec extends Specification {
           }
         }
       }
-      
+
       val start = System.currentTimeMillis()
       for (i <- 1 to threads) {
         executor.submit(new Worker)
