@@ -1,13 +1,10 @@
 package com.gilt.handlebars
 
-import com.gilt.handlebars._
-
-import java.io.File
 import java.util.Random
 
 import org.specs2.mutable._
-
-import scala.io._
+import java.util.concurrent.{LinkedBlockingQueue, Executors, CountDownLatch, ArrayBlockingQueue}
+import java.util.concurrent.atomic.AtomicInteger
 
 class HandlebarsPerfSpec extends Specification {
 
@@ -84,32 +81,87 @@ class HandlebarsPerfSpec extends Specification {
 
   "handlebars" should {
     "render a template in less than " + Threshold + " ms" in {
-      val count = 25000
-      var totalSize = 0l
-      var totalRuntime = 0l
 
       val handlebars = Handlebars(Template)
 
       // warmup the jvm (let the JIT find the hotspots)
-      for (i <- 0 to count / 100) {
+      for (i <- 0 to 1000) {
         val context = generateRndFriends(rndGen)
-        val size = handlebars(context).size
-        totalSize += size // you must use what you build or the JVM will optimize it away
+        handlebars(context).size
+      }
+      
+      val poison = Friends(Nil)
+      val source = new ArrayBlockingQueue[Friends](1024)
+      val threads = Runtime.getRuntime.availableProcessors()
+      val latch = new CountDownLatch(threads)
+      val executor = Executors.newFixedThreadPool(threads + 1)
+      val count = 50000
+      
+      executor.submit(new Runnable {
+        override def run() {
+          for (i <- 1 to count) {
+            source.put(generateRndFriends(rndGen))
+          }
+          source.put(poison)
+        }
+      })
+      
+      case class Stats(n: Long, sum: Long, sumSq: Double)
+      object PoisonStats extends Stats(0,0,0)
+      val sink = new LinkedBlockingQueue[Stats]
+      val remaining = new AtomicInteger(threads)
+      class Worker extends Runnable {
+        override def run() {
+          var done = false
+          var n = 0l
+          var sum = 0l
+          var sumSq = 0d
+          while (!done) {
+            val friend = source.take()
+            if (friend eq poison) {
+              val stats = Stats(n, sum, sumSq)
+              sink.put(stats)
+              if (remaining.decrementAndGet() == 0) {
+                sink.put(PoisonStats)
+              } else {
+                source.put(friend)
+              }
+              latch.countDown()
+              done = true
+            } else {
+              val start = System.currentTimeMillis()
+              handlebars(friend)
+              val elapsed = System.currentTimeMillis() - start
+              n += 1
+              sum += elapsed
+              sumSq += elapsed * elapsed
+            }
+          }
+        }
+      }
+      
+      val start = System.currentTimeMillis()
+      for (i <- 1 to threads) {
+        executor.submit(new Worker)
+      }
+      latch.await()
+      val elapsed = System.currentTimeMillis() - start
+      var n = 0l
+      var sum = 0l
+      var sumSq = 0d
+      sink.toArray(new Array[Stats](threads)).filter(_ ne PoisonStats).foreach {
+        stat =>
+          n += stat.n
+          sum += stat.sum
+          sumSq += stat.sumSq
       }
 
-      for (i <- 0 to count) {
-        val context = generateRndFriends(rndGen)
-        val now = System.currentTimeMillis
-        val actual = handlebars(context)
-        val elapsed = (System.currentTimeMillis - now)
-        totalRuntime += elapsed
-        totalSize += actual.size
-      }
+      val avg = sum / n.toDouble
+      val sd = math.sqrt((n * sumSq - sum * sum) / (n * (n - 1d)))
+      println("Average: %f ms +/- %f ms".format(avg, sd))
+      println("Total elapsed = %d ms (avg = %f ms)".format(elapsed, elapsed / count.toDouble))
 
-      val avg = totalRuntime / count
-      println("Average rendering time is: " + avg + " ms.")
-
-      avg.toInt must beLessThan(5)
+      avg.toInt must beLessThan(999)
     }
   }
 }

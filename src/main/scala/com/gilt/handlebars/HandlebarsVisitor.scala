@@ -9,6 +9,8 @@ import collection.JavaConversions._
 import org.slf4j.{Logger, LoggerFactory}
 import com.google.common.base.Optional
 import java.lang.reflect.Method
+import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.ConcurrentHashMap
 
 object HandlebarsVisitor {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
@@ -154,10 +156,7 @@ class HandlebarsVisitor[T](
 }
 
 object ContextClassCache {
-  @volatile
-  var cache: Map[Class[_], Map[String, Method]] = Map.empty
-
-  val lock = new java.util.concurrent.locks.ReentrantReadWriteLock
+  private [this] val cache = new ConcurrentHashMap[Class[_], Map[String, Method]]
 
   /**
    * Returns a map containing the methods of the class - the reflection calls to generate this map
@@ -168,18 +167,13 @@ object ContextClassCache {
    * @return
    */
   def getMethods(clazz: Class[_]): Map[String, Method] = {
-    lock.readLock.lock
     val methodsOpt = cache.get(clazz)
-    lock.readLock.unlock
-
-    if (methodsOpt.isDefined) {
-      methodsOpt.get
+    if (methodsOpt == null) {
+      val value = clazz.getMethods.map(m => (m.getName + m.getParameterTypes.length, m)).toMap
+      cache.putIfAbsent(clazz, value)
+      value
     } else {
-      val methods: Map[String, Method] = (clazz.getMethods map { m => (m.getName + m.getParameterTypes.length, m) }).toMap
-      lock.writeLock.lock
-      cache = cache + (clazz -> methods)
-      lock.writeLock.unlock
-      methods
+      methodsOpt
     }
   }
 }
