@@ -262,18 +262,15 @@ object Context {
     case _ => true
   }
 
-  def getMethod[A](name: String, args: List[A] = Nil) = getMethods(context.getClass).get(name + args.length)
 }
 
-trait Context[T] {
+trait Context[+T] {
   import ContextClassCache._
 
   import Context._
 
   // the wrapped context with which user code deals
   val context: T
-
-  val methodsCache: Map[String, Method] = (context.getClass.getMethods map { m => (m.getName + m.getParameterTypes.length, m) }).toMap
 
   // Option, since the root context does
   // not have a parent, but all others do
@@ -303,7 +300,6 @@ trait Context[T] {
   // since they don't take up too much space
   // but shouldn't really need to be recomputed
   // once used
-
   lazy val definedOrEmpty: Context[Any] = {
     ChildContext(
       (context: Any) match {
@@ -314,6 +310,8 @@ trait Context[T] {
   }
 
   lazy val truthValue: Boolean = Context.truthValue(context: Any)
+
+  def getMethod[A](name: String, args: List[A] = Nil) = getMethods(context.getClass).get(name + args.length)
 }
 
 /**
