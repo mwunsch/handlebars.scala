@@ -2,7 +2,7 @@ name := "Handlebars"
 
 organization := "com.gilt"
 
-version := "0.0.3"
+version := "0.0.4-SNAPSHOT"
 
 scalaVersion := "2.9.1"
 
@@ -28,9 +28,9 @@ publishMavenStyle := true
 publishTo <<= version { (v: String) =>
   val nexus = "https://oss.sonatype.org/"
   if (v.trim.endsWith("SNAPSHOT"))
-    Some("Sonatype.org Snapshots" at nexus + "content/repositories/snapshots")
+    Some("snapshots" at nexus + "content/repositories/snapshots")
   else
-    Some("Sonatype.org Releases"  at nexus + "/service/local/staging/deploy/maven2")
+    Some("releases"  at nexus + "/service/local/staging/deploy/maven2")
 }
 
 publishArtifact in Test := false

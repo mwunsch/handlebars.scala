@@ -8,18 +8,26 @@ import collection.JavaConversions._
 
 import org.slf4j.{Logger, LoggerFactory}
 import com.google.common.base.Optional
+import java.lang.reflect.Method
+import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.ConcurrentHashMap
 
 object HandlebarsVisitor {
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
   def apply[T](base: T, helpers: Map[String,Helper[T]] = Map.empty[String,Helper[T]]) = {
     new HandlebarsVisitor(new RootContext(base), helpers)
   }
 }
 
-class HandlebarsVisitor[T](context: Context[T],
-    additionalHelpers: Map[String, Helper[T]] = Map.empty[String, Helper[T]]) {
+class HandlebarsVisitor[T](
+  context: Context[T],
+  additionalHelpers: Map[String, Helper[T]] = Map.empty[String, Helper[T]]
+) {
+  import HandlebarsVisitor._
 
-  private val logger: Logger = LoggerFactory.getLogger(getClass)
-  logger.debug("Created a visitor with context: %s".format(context.context))
+  if (logger.isDebugEnabled) {
+    logger.debug("Created a visitor with context: %s".format(context.context))
+  }
 
   def visit(node: Node): String = node match {
     case Content(content) => content
@@ -56,9 +64,13 @@ class HandlebarsVisitor[T](context: Context[T],
     }
 
     resolution orElse {
-      logger.debug("Could not find identifier: '%s' in context. Searching in helpers.".format(list.map(_.value).mkString(".")))
+      if (logger.isDebugEnabled) {
+        logger.debug("Could not find identifier: '%s' in context. Searching in helpers.".format(list.map(_.value).mkString(".")))
+      }
       helpers.get(list.head.value) map { fn =>
-        logger.debug("Found: '%s' in helpers.".format(list.head.value))
+        if (logger.isDebugEnabled) {
+          logger.debug("Found: '%s' in helpers.".format(list.head.value))
+        }
         HelperResult(fn(args.map(_.context), this, Some(context.context)), Some(context))
       }
     } getOrElse {
@@ -93,13 +105,17 @@ class HandlebarsVisitor[T](context: Context[T],
       resolvePath(path.value, getArguments(parameters)) match {
         case hr: HelperResult[_] => renderHelperBlock(hr, program)
         case c => {
-          logger.debug("Inverting the block for: %s".format(path))
+          if (logger.isDebugEnabled) {
+            logger.debug("Inverting the block for: %s".format(path))
+          }
           renderSimpleSection(c, program, inverted)
         }
       }
     }
 
-    logger.debug("Evaluated block as: %s".format(result))
+    if (logger.isDebugEnabled) {
+      logger.debug("Evaluated block as: %s".format(result))
+    }
     result
   }
 
@@ -163,9 +179,10 @@ class HandlebarsVisitor[T](context: Context[T],
 
   // Mimicking the options of Handlebarsjs
   def fn[A](value: A) = {
-    logger.debug("Preparing Context for new value: %s".format(value))
+    if (logger.isDebugEnabled) {
+      logger.debug("Preparing Context for new value: %s".format(value))
+    }
     val block = new ChildContext(value, Some(context))
-
     (program: Program) => value match {
       case list:Iterable[_] => list.map(i => createVisitor(new ChildContext(i, Some(block))).visit(program)).mkString
       case javaList:java.util.Collection[_] => javaList.map(i => createVisitor(new ChildContext(i, Some(block))).visit(program)).mkString
@@ -211,13 +228,47 @@ class HandlebarsVisitor[T](context: Context[T],
 
 }
 
-/**
- * A wrapper around the literal context as referenced from templates.
- */
-trait Context[+T] {
-  import java.lang.reflect.Method
+object ContextClassCache {
+  private [this] val cache = new ConcurrentHashMap[Class[_], Map[String, Method]]
+
+  /**
+   * Returns a map containing the methods of the class - the reflection calls to generate this map
+   * have been memoized so this should be performant. The method uses a read-write lock to ensure thread-safe
+   * access to the map.
+   *
+   * @param clazz
+   * @return
+   */
+  def getMethods(clazz: Class[_]): Map[String, Method] = {
+    val methodsOpt = cache.get(clazz)
+    if (methodsOpt == null) {
+      val value = clazz.getMethods.map(m => (m.getName + m.getParameterTypes.length, m)).toMap
+      cache.putIfAbsent(clazz, value)
+      value
+    } else {
+      methodsOpt
+    }
+  }
+}
+
+object Context {
+  import ContextClassCache._
 
   private val logger: Logger = LoggerFactory.getLogger(getClass)
+
+  // mimic "falsy" values of Handlebars.js, plus care about Options
+  def truthValue(a: Any): Boolean = a match {
+    case UndefinedValue | None | false | Nil | null | "" => false
+    case _ => true
+  }
+
+  def getMethod[A](name: String, args: List[A] = Nil) = getMethods(context.getClass).get(name + args.length)
+}
+
+trait Context[T] {
+  import ContextClassCache._
+
+  import Context._
 
   // the wrapped context with which user code deals
   val context: T
@@ -233,7 +284,9 @@ trait Context[+T] {
   }
 
   def invoke[A](method: java.lang.reflect.Method, args: List[A]): Option[Any] = {
-    logger.debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
+    if (logger.isDebugEnabled) {
+      logger.debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
+    }
 
     try {
       if (method.getReturnType.getCanonicalName == classOf[Optional[String]].getCanonicalName) {
@@ -245,8 +298,6 @@ trait Context[+T] {
       case e: java.lang.IllegalArgumentException => None
     }
   }
-
-  def getMethod[A](name: String, args: List[A] = Nil) = methodsCache.get(name + args.length)
 
   // these are lazy vals instead of functions
   // since they don't take up too much space
@@ -263,14 +314,6 @@ trait Context[+T] {
   }
 
   lazy val truthValue: Boolean = Context.truthValue(context: Any)
-}
-
-object Context {
-  // mimic "falsy" values of Handlebars.js, plus care about Options
-  def truthValue(a: Any): Boolean = a match {
-    case UndefinedValue | None | false | Nil | null | "" => false
-    case _ => true
-  }
 }
 
 /**
