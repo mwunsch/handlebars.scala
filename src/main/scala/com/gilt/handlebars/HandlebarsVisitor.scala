@@ -1,16 +1,13 @@
 package com.gilt.handlebars
 
-import com.gilt.handlebars._
-import com.gilt.util.GuavaConversions._
 import Handlebars.Helper
 
 import collection.JavaConversions._
 
 import org.slf4j.{Logger, LoggerFactory}
-import com.google.common.base.Optional
 import java.lang.reflect.Method
-import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.ConcurrentHashMap
+import com.gilt.util.GuavaOptionalHelper
 
 object HandlebarsVisitor {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
@@ -287,8 +284,8 @@ trait Context[+T] {
     }
 
     try {
-      if (method.getReturnType.getCanonicalName == classOf[Optional[String]].getCanonicalName) {
-        method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*).asInstanceOf[Optional[Object]]
+      if (method.getReturnType.getCanonicalName == "com.google.common.base.Optional") {
+        GuavaOptionalHelper.invoke(context, method, args)
       } else {
         Some(method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*))
       }

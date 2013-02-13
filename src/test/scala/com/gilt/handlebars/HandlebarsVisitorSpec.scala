@@ -148,6 +148,14 @@ class HandlebarsVisitorSpec extends Specification {
       visitor.visit(program) must beEqualTo("hello, chris")
     }
 
+    "visit a program and render a section, where the the data is an guava Optional.absent" in {
+      val program = Handlebars.parse("hello, {{name}}")
+      val visitor = HandlebarsVisitor(new {
+        val name = Optional.absent
+      })
+      visitor.visit(program) must beEqualTo("hello, ")
+    }
+
     "visit a program and render a section, where the the data is an guava Optional[Any]" in {
       class Person(val name: Optional[String])
 
