@@ -282,17 +282,25 @@ trait Context[+T] {
     if (logger.isDebugEnabled) {
       logger.debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
     }
-
     try {
       if (method.getReturnType.getCanonicalName == "com.google.common.base.Optional") {
         GuavaOptionalHelper.invoke(context, method, args)
       } else {
-        Some(method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*))
+        val result = method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*)
+
+        result match {
+          case Some(o) => if (isPrimitiveType(o)) Some(o) else Some(result)
+          case None => Some("")
+          case _ => Some(result)
+        }
       }
     } catch {
       case e: java.lang.IllegalArgumentException => None
     }
   }
+
+  def isPrimitiveType(obj: Any) = obj.isInstanceOf[Int] || obj.isInstanceOf[Long] || obj.isInstanceOf[Float] ||
+    obj.isInstanceOf[BigDecimal] || obj.isInstanceOf[Double] || obj.isInstanceOf[String]
 
   // these are lazy vals instead of functions
   // since they don't take up too much space
