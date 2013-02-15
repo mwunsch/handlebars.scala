@@ -110,6 +110,14 @@ class HandlebarsVisitorSpec extends Specification {
       visitor.visit(program) must beEqualTo("HELLO, world.")
     }
 
+    "visit a program and render a section, where the block context is an Option (Primitive)" in {
+      val program = Handlebars.parse("{{greeting}}, world.")
+      val visitor = HandlebarsVisitor(new {
+        val greeting = Some("Hello")
+      })
+      visitor.visit(program) must beEqualTo("Hello, world.")
+    }
+
     "visit a program and render a section, where the block context is an Iterable" in {
       val program = Handlebars.parse("{{#names}}{{toString}} & {{/names}}me")
       val visitor = HandlebarsVisitor(new {

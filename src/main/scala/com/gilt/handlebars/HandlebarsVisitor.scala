@@ -7,7 +7,7 @@ import collection.JavaConversions._
 import org.slf4j.{Logger, LoggerFactory}
 import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
-import com.gilt.util.GuavaOptionalHelper
+import com.gilt.util.{PrimitiveOption, GuavaOptionalHelper}
 
 object HandlebarsVisitor {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
@@ -282,12 +282,16 @@ trait Context[+T] {
     if (logger.isDebugEnabled) {
       logger.debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
     }
-
     try {
       if (method.getReturnType.getCanonicalName == "com.google.common.base.Optional") {
         GuavaOptionalHelper.invoke(context, method, args)
       } else {
-        Some(method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*))
+        val result = method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*)
+
+        result match {
+          case PrimitiveOption(o) => Some(o)
+          case _ => Some(result)
+        }
       }
     } catch {
       case e: java.lang.IllegalArgumentException => None
