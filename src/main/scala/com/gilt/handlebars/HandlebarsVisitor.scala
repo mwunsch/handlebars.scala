@@ -7,7 +7,7 @@ import collection.JavaConversions._
 import org.slf4j.{Logger, LoggerFactory}
 import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
-import com.gilt.util.{PrimitiveOption, GuavaOptionalHelper}
+import com.gilt.util.GuavaOptionalHelper
 
 object HandlebarsVisitor {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
