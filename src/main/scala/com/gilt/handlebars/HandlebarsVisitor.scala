@@ -43,8 +43,9 @@ class HandlebarsVisitor[T](
    * If the path cannot be resolved, return a Context with the special value UndefinedValue,
    * so that this result is propagated during parameter passing for helpers,
    * and easy to deal with in section rendering.
-   * @list the list of identifier components that constitute the path
-   * @args arguments to pass to the path's value when interpreted as a helper.
+   *
+   * @param list the list of identifier components that constitute the path
+   * @param args arguments to pass to the path's value when interpreted as a helper.
    */
   def resolvePath(list: List[Identifier], args: List[Context[Any]] = Nil): Context[Any] = {
     val resolution = list.foldLeft(None: Option[Context[Any]]) { (someContext, identifier) =>
@@ -64,7 +65,11 @@ class HandlebarsVisitor[T](
       if (logger.isDebugEnabled) {
         logger.debug("Could not find identifier: '%s' in context. Searching in helpers.".format(list.map(_.value).mkString(".")))
       }
-      helpers.get(list.head.value) map { fn =>
+
+      // Try for a normal Path orElse a Partial Path from the filesystem
+      val helper = helpers.get(list.head.value) orElse helpers.get(list.map(_.value).mkString("/"))
+
+      helper map { fn =>
         if (logger.isDebugEnabled) {
           logger.debug("Found: '%s' in helpers.".format(list.head.value))
         }
