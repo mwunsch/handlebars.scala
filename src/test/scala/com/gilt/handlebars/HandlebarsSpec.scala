@@ -48,6 +48,22 @@ class HandlebarsSpec extends Specification {
 
       Handlebars.fromFile(fileTest) must throwAn[IllegalArgumentException]
     }
+
+    "create a Handlebars from a class" in {
+      val template = Handlebars.fromClass(getClass, "/test/filetest.handlebars")
+
+      template(new {}) must beEqualTo(
+        """This is a handlebars file in a JAR.
+          |
+          |This is a local partial
+          |
+          |localPartial
+          |
+          |This is a partial in directory
+          |
+          |Nested Partial: partialWithinAPartial""".stripMargin
+      )
+    }
   }
 
 }
