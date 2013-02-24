@@ -66,10 +66,7 @@ class HandlebarsVisitor[T](
         logger.debug("Could not find identifier: '%s' in context. Searching in helpers.".format(list.map(_.value).mkString(".")))
       }
 
-      // Try for a normal Path orElse a Partial Path from the filesystem
-      val helper = helpers.get(list.head.value) orElse helpers.get(list.map(_.value).mkString("/"))
-
-      helper map { fn =>
+      helpers.get(list.head.value) map { fn =>
         if (logger.isDebugEnabled) {
           logger.debug("Found: '%s' in helpers.".format(list.head.value))
         }
@@ -172,7 +169,15 @@ class HandlebarsVisitor[T](
   }
 
   def compilePartial(path: Path): String = {
-    this visit HandlebarsGrammar().scan(resolvePath(path.value).context.toString)
+    val pathAsString = path.value.map(_.value).mkString("/")
+    this visit {
+      PartialHandlebarsCache.get(pathAsString).getOrElse {
+        logger.warn("Cache miss for path[%s]".format(path))
+        val template = Handlebars(HandlebarsGrammar().scan(resolvePath(path.value).context.toString))
+        PartialHandlebarsCache.put(pathAsString, template)
+        template
+      }.program
+    }
   }
 
   def helpers: Map[String, (Seq[Any], HandlebarsVisitor[T], Option[T]) => Any] = {
