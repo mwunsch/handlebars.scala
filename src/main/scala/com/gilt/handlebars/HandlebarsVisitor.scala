@@ -216,7 +216,10 @@ class HandlebarsVisitor[T](
 
   private def ifHelper[T](context: Seq[Any], options: HandlebarsVisitor[T], parent: Option[T]): Any = {
     if (Context.truthValue(context.head)) {
-      options.fn(parent)
+      parent match {
+        case Some(n) => options.fn(n)
+        case _ => None
+      }
     } else {
       None
     }
