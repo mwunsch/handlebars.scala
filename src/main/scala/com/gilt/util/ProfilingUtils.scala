@@ -2,11 +2,6 @@ package com.gilt.util
 
 import org.slf4j.{LoggerFactory, Logger}
 
-/**
- * User: chicks
- * Date: 2/23/13
- * Time: 7:58 PM
- */
 trait ProfilingUtils {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
