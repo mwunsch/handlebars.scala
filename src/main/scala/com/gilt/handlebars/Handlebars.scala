@@ -23,6 +23,11 @@ sealed trait Handlebars extends ProfilingUtils {
     PartialHandlebarsCache.put(name, template)
     template
   }
+
+  /**
+   * Used to reset the handlebars to its original state. Aka, clearing the partials cache.
+   */
+  def reset: Unit
 }
 
 object Handlebars {
@@ -80,6 +85,11 @@ class HandlebarsFromClass(clazz: Class[_], path: String, delimiters: (String, St
   def apply[T](context: T, helpers: Map[String,Helper[T]] = Map.empty[String,Helper[T]]) = {
     time("Rendered %s in".format(jarPath)) { template(context, helpers) }
   }
+
+  def reset {
+    PartialHandlebarsCache.clearCache
+    cachePartials(clazz, path, program)
+  }
 }
 
 /**
@@ -105,6 +115,11 @@ class HandlebarsFromFile(file: File, delimiters: (String, String) = ("{{", "}}")
   def apply[T](context: T, helpers: Map[String,Helper[T]] = Map.empty[String,Helper[T]]) = {
     time("Rendered %s in".format(file.getPath)) { template(context, helpers) }
   }
+
+  def reset {
+    PartialHandlebarsCache.clearCache
+    cachePartials(file, program)
+  }
 }
 
 class HandlebarsFromProgram(override val program: Program) extends Handlebars {
@@ -113,4 +128,6 @@ class HandlebarsFromProgram(override val program: Program) extends Handlebars {
   def apply[T](context: T, helpers: Map[String,Helper[T]] = Map.empty[String,Helper[T]]) = {
     HandlebarsVisitor(context, helpers).visit(program)
   }
+
+  def reset {}
 }
