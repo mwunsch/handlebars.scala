@@ -2,7 +2,7 @@ name := "Handlebars"
 
 organization := "com.gilt"
 
-version := "0.0.6-SNAPSHOT"
+version := "0.0.15"
 
 scalaVersion := "2.9.1"
 
@@ -32,6 +32,9 @@ publishTo <<= version { (v: String) =>
   else
     Some("releases"  at nexus + "/service/local/staging/deploy/maven2")
 }
+
+// For publishing / testing locally
+// publishTo := Some(Resolver.file("m2",  new File(Path.userHome.absolutePath+"/.m2/repository")))
 
 publishArtifact in Test := false
 
