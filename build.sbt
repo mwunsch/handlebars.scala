@@ -2,7 +2,7 @@ name := "Handlebars"
 
 organization := "com.gilt"
 
-version := "0.0.15"
+version := "0.0.16"
 
 scalaVersion := "2.9.1"
 
