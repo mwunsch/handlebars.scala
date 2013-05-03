@@ -26,16 +26,22 @@ class HandlebarsVisitor[T](
     logger.debug("Created a visitor with context: %s".format(context.context))
   }
 
-  def visit(node: Node): String = node match {
-    case Content(content) => content
-    case Identifier(ident) => context.invoke(ident).getOrElse("").toString
-    case Path(path) => resolvePath(path).definedOrEmpty.context.toString
-    case Comment(_) => ""
-    case Partial(partial) => compilePartial(partial)
-    case Mustache(stache, params, escaped) => resolveMustache(stache, params, escape = escaped)
-    case Section(stache, value, inverted) => renderSection(stache.value, stache.parameters, value, inverted)
-    case Program(children, _) => children.map(visit).mkString
-    case _ => toString
+  def visit(node: Node): String = try {
+    node match {
+      case Content(content) => content
+      case Identifier(ident) => context.invoke(ident).getOrElse("").toString
+      case Path(path) => resolvePath(path).definedOrEmpty.context.toString
+      case Comment(_) => ""
+      case Partial(partial) => compilePartial(partial)
+      case Mustache(stache, params, escaped) => resolveMustache(stache, params, escape = escaped)
+      case Section(stache, value, inverted) => renderSection(stache.value, stache.parameters, value, inverted)
+      case Program(children, _) => children.map(visit).mkString
+      case _ => toString
+    }
+  } catch {
+    case e: HandlebarsException => throw e
+    case e: Exception =>
+      throw new HandlebarsRuntimeException(node, e)
   }
 
   /**
