@@ -14,6 +14,8 @@ import java.io.File
 object PartialHandlebarsCache {
   private [this] val cache = new ConcurrentHashMap[String, Handlebars]
 
+  val CachingHandlebars = Handlebars("")
+
   def get(path: String): Option[Handlebars] = {
     Option(cache.get(path))
   }
@@ -57,7 +59,14 @@ object PartialHandlebarsCache {
     paths.foreach{ p => {
       val pFile = new File("%s/%s.handlebars".format(file.getParent, p))
       require(pFile.exists(), "Could not find partial template located at [%s]".format(pFile.getAbsolutePath))
-      put(p, Handlebars.fromFile(pFile))
+      if (!cache.containsKey(p)) {
+        // says we're already caching this, no need to do it on the eventual recursive call below
+        cache.put(p, CachingHandlebars)
+
+        // cache the real fully built handlebars
+        cache.put(p, Handlebars.fromFile(pFile))
+      }
+
     }}
   }
 }
