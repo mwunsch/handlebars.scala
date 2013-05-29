@@ -2,7 +2,7 @@ name := "Handlebars"
 
 organization := "com.gilt"
 
-version := "0.0.17"
+version := "0.0.18"
 
 scalaVersion := "2.9.1"
 
@@ -41,7 +41,7 @@ publishArtifact in Test := false
 pomIncludeRepository := { _ => false }
 
 pomExtra := (
-  <url>https://github.com/gilt/handlebars.scala</url>
+  <url>https://github.com/mwunsch/handlebars.scala</url>
   <licenses>
     <license>
       <name>BSD-style</name>
@@ -50,8 +50,8 @@ pomExtra := (
     </license>
   </licenses>
   <scm>
-    <url>git@github.com:gilt/handlebars.scala.git</url>
-    <connection>scm:git:git@github.com:gilt/handlebars.scala.git</connection>
+    <url>git@github.com:mwunsch/handlebars.scala.git</url>
+    <connection>scm:git:git@github.com:mwunsch/handlebars.scala.git</connection>
   </scm>
   <developers>
     <developer>
