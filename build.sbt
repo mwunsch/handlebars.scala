@@ -14,7 +14,7 @@ libraryDependencies ++= Seq(
   "org.slf4j" % "slf4j-simple" % "1.7.5"
 )
 
-libraryDependencies += "com.google.guava" % "guava" % "12.0"
+libraryDependencies += "org.scalatest" %% "scalatest" % "1.9.1" % "test"
 
 resolvers ++= Seq(
   "Sonatype.org Snapshots" at "http://oss.sonatype.org/content/repositories/snapshots",
