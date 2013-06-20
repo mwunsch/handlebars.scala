@@ -8,11 +8,15 @@ scalaVersion := "2.9.2"
 
 crossPaths := false
 
+scalacOptions += "-deprecation"
+
 libraryDependencies ++= Seq(
   "org.specs2" %% "specs2" % "1.9" % "test",
   "org.slf4j" % "slf4j-api" % "1.7.5",
   "org.slf4j" % "slf4j-simple" % "1.7.5"
 )
+
+libraryDependencies += "org.scalatest" %% "scalatest" % "1.9.1" % "test"
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "1.9.1" % "test"
 
