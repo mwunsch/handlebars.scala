@@ -140,7 +140,7 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
   val EQUALS = "="
 
-  val ID = """[^\s!"#%-,\.\/;->@\[-\^`\{-~]+""".r | ident
+  val ID = """[^\s!"#%-,\.\/;->@\[-\^`\{-~]+""".r | ("[" ~> """[^\]]*""".r <~ "]") | ident
 
   val SEPARATOR = "/" | "."
 

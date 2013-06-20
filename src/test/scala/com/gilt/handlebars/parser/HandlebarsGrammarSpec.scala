@@ -422,6 +422,31 @@ class HandlebarsGrammarSpec extends FunSpec with ShouldMatchers with ParserMatch
     }
   }
 
+  describe("Path literals") {
+    it("allows path literals with []") {
+      parsers("{{foo.[bar]}}") should succeedWithResult {
+        Program(List(
+          Mustache(
+            Identifier(List("foo","bar"))
+          )
+        ))
+      }
+    }
+
+    it("allows multiple path literals on a line with []") {
+      parsers("{{foo.[bar]}}{{foo.[baz]}}") should succeedWithResult {
+        Program(List(
+          Mustache(Identifier(
+            List("foo","bar")
+          )),
+          Mustache(Identifier(
+            List("foo","baz")
+          ))
+        ))
+      }
+    }
+  }
+
 }
 
 
