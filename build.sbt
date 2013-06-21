@@ -8,24 +8,21 @@ scalaVersion := "2.9.2"
 
 crossPaths := false
 
-scalacOptions += "-deprecation"
-
 libraryDependencies ++= Seq(
-  "org.specs2" %% "specs2" % "1.9" % "test",
+  "org.scalatest" %% "scalatest" % "1.9.1" % "test",
   "org.slf4j" % "slf4j-api" % "1.7.5",
   "org.slf4j" % "slf4j-simple" % "1.7.5"
 )
-
-libraryDependencies += "org.scalatest" %% "scalatest" % "1.9.1" % "test"
-
-libraryDependencies += "org.scalatest" %% "scalatest" % "1.9.1" % "test"
 
 resolvers ++= Seq(
   "Sonatype.org Snapshots" at "http://oss.sonatype.org/content/repositories/snapshots",
   "Sonatype.org Releases" at "http://oss.sonatype.org/service/local/staging/deploy/maven2"
 )
 
-scalacOptions += "-unchecked"
+scalacOptions ++= Seq(
+  "-deprecation",
+  "-unchecked"
+)
 
 publishMavenStyle := true
 
@@ -48,8 +45,8 @@ pomExtra := (
   <url>https://github.com/mwunsch/handlebars.scala</url>
   <licenses>
     <license>
-      <name>BSD-style</name>
-      <url>http://www.opensource.org/licenses/bsd-license.php</url>
+      <name>Apache License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0</url>
       <distribution>repo</distribution>
     </license>
   </licenses>
@@ -62,5 +59,7 @@ pomExtra := (
       <id>mwunsch</id>
       <name>Mark Wunsch</name>
       <url>http://markwunsch.com/</url>
+      <organization>Gilt</organization>
+      <organizationUrl>http://www.gilt.com</organizationUrl>
     </developer>
   </developers>)
