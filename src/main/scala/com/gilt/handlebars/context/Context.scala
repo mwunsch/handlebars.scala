@@ -2,6 +2,7 @@ package com.gilt.handlebars.context
 
 import com.gilt.handlebars.logging.Loggable
 import java.lang.reflect.Method
+import com.gilt.handlebars.parser.Identifier
 
 /**
  * User: chicks
@@ -48,12 +49,6 @@ object ThisIdentifier {
   }
 }
 
-object LiteralIdentifier {
-  def unapply(s: String): Option[String] = {
-    if ("""\[.+\]""".r.pattern.matcher(s).matches()) Some(s) else None
-  }
-}
-
 trait Context[+T] extends ContextFactory with Loggable {
   val isRoot: Boolean
   val isUndefined: Boolean
@@ -65,30 +60,13 @@ trait Context[+T] extends ContextFactory with Loggable {
 
   override def toString = "Context model[%s] parent[%s]".format(model, parent)
 
-  def lookup(path: String, args: List[Any] = List.empty): Context[Any] = {
-    val idents = path.split("/").map {
-      str =>
-        str match {
-          case ThisIdentifier(s) => Array(s)
-          case ParentIdentifier(s) => Array(s)
-          case _ => str.split('.')
-        }
-    }.flatten.toList.map {
-      str =>
-        str match {
-          case LiteralIdentifier(s) => s.drop(1).dropRight(1)
-          case _ => str
-        }
-    }
-
-    lookup(idents, args)
+  def lookup(path: Identifier, args: List[Any] = List.empty): Context[Any] = {
+    lookup(path.parts, args)
   }
 
   private def lookup(path: List[String], args: List[Any]): Context[Any] = {
-    info("lookup[%s], args[%s] on [%s].".format(path.head.toString, args, model))
-
     path.head match {
-      case p if (isUndefined) => this
+      case p if isUndefined => this
       case ParentIdentifier(p) =>
         if (isRoot) createUndefined else parent.lookup(path.tail, args)
       case ThisIdentifier(p) => this
