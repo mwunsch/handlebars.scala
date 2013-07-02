@@ -5,10 +5,20 @@ import java.io.File
 import scala.io.Source
 
 /**
- * User: chicks
- * Date: 6/30/13
+ * @author chicks
+ * @since 6/30/13
  */
 trait PartialHelper {
+
+  /**
+   * Filters a node and returns all of the Partial nodes contained within it. This method will filter as-is, so if a
+   * reference to a partial exists more than once duplicates will appear in the result.
+   *
+   * If a unique list is desired, use toSet on the resulting List.
+   *
+   * @param node usually a Program node result of HandlebarsGrammar
+   * @return List of Partial nodes within node
+   */
   def filterPartials(node: Node): List[Partial] = {
     node match {
       case n:Partial => List(n)
@@ -19,6 +29,19 @@ trait PartialHelper {
     }
   }
 
+  /**
+   * Finds all partials referenced in a file and nested partial includes from THOSE partials. Traverses the tree of
+   * handlebars partial includes recursively and aggregates the Partials found.
+   *
+   * Maintains a list of files traversed to avoid infinite loops from the recursion.
+   *
+   * TODO: probably should not throw an error, but a warning when a template is not found. A missing template could
+   *       mean that it may be defined on the frontend.
+   *
+   * @param file file to scan for partials
+   * @param touchedFiles running list of files that were scanned
+   * @return Map of partialName -> [[java.io.File]]
+   */
   def findPartials(file: File, touchedFiles: List[String] = List.empty): Map[String, File] = {
     if (file.exists() && !touchedFiles.contains(file.getAbsolutePath)) {
       val contents = Source.fromFile(file).mkString
