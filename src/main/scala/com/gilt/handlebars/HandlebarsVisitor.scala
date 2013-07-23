@@ -302,7 +302,7 @@ trait Context[+T] {
       logger.debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
     }
     try {
-      if (method.getReturnType.getCanonicalName == "com.google.common.base.Optional") {
+      if (method.getReturnType eq classOf[com.google.common.base.Optional[_]]) {
         GuavaOptionalHelper.invoke(context, method, args)
       } else {
         val result = method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*)
