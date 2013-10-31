@@ -1,20 +1,17 @@
-name := "Handlebars"
+name := "handlebars"
 
 organization := "com.gilt"
 
-version := "0.0.18"
+scalaVersion := "2.10.2"
 
-scalaVersion := "2.9.1"
-
-crossPaths := false
+crossScalaVersions := Seq("2.10.2", "2.9.1", "2.9.2")
 
 libraryDependencies ++= Seq(
-  "org.specs2" %% "specs2" % "1.9" % "test",
+  "com.google.guava" % "guava" % "12.0",
   "org.slf4j" % "slf4j-api" % "1.6.4",
-  "org.slf4j" % "slf4j-simple" % "1.6.4"
+  "org.slf4j" % "slf4j-simple" % "1.6.4",
+  "org.specs2" %% "specs2" % "1.12.3" % "test"
 )
-
-libraryDependencies += "com.google.guava" % "guava" % "12.0"
 
 resolvers ++= Seq(
   "Sonatype.org Snapshots" at "http://oss.sonatype.org/content/repositories/snapshots",
@@ -34,21 +31,17 @@ publishTo <<= version { (v: String) =>
 }
 
 // For publishing / testing locally
-// publishTo := Some(Resolver.file("m2",  new File(Path.userHome.absolutePath+"/.m2/repository")))
+//publishTo := Some(Resolver.file("m2",  new File(Path.userHome.absolutePath+"/.m2/repository")))
 
 publishArtifact in Test := false
 
 pomIncludeRepository := { _ => false }
 
+licenses := Seq("BSD-style" -> url("http://www.opensource.org/licenses/bsd-license.php"))
+
+homepage := Some(url("https://github.com/mwunsch/handlebars.scala"))
+
 pomExtra := (
-  <url>https://github.com/mwunsch/handlebars.scala</url>
-  <licenses>
-    <license>
-      <name>BSD-style</name>
-      <url>http://www.opensource.org/licenses/bsd-license.php</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
   <scm>
     <url>git@github.com:mwunsch/handlebars.scala.git</url>
     <connection>scm:git:git@github.com:mwunsch/handlebars.scala.git</connection>
