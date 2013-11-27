@@ -305,8 +305,12 @@ trait Context[+T] {
       if (method.getReturnType eq classOf[com.google.common.base.Optional[_]]) {
         GuavaOptionalHelper.invoke(context, method, args)
       } else {
-        val result = method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*)
-
+        val result = {
+          if (args.isEmpty)
+            method.invoke(context)
+          else
+            method.invoke(context, args.map(_.asInstanceOf[AnyRef]): _*)
+        }
         result match {
           case Some(o) => if (isPrimitiveType(o)) Some(o) else Some(result)
           case None => Some("")
