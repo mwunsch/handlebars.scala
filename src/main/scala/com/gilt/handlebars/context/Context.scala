@@ -2,7 +2,7 @@ package com.gilt.handlebars.context
 
 import com.gilt.handlebars.logging.Loggable
 import java.lang.reflect.Method
-import com.gilt.handlebars.parser.Identifier
+import com.gilt.handlebars.parser.{IdentifierNode, Identifier}
 
 /**
  * User: chicks
@@ -48,6 +48,17 @@ object ThisIdentifier {
     if (".".equals(s) || "this".equals(s)) Some(s) else None
   }
 }
+object Context {
+  /**
+   * mimic "falsy" values of Handlebars.js, plus care about Options
+   * @param a
+   * @return
+   */
+  def truthValue(a: Any): Boolean = a match {
+    case /* UndefinedValue |*/ None | false | Nil | null | "" => false
+    case _ => true
+  }
+}
 
 trait Context[+T] extends ContextFactory with Loggable {
   val isRoot: Boolean
@@ -60,9 +71,23 @@ trait Context[+T] extends ContextFactory with Loggable {
 
   override def toString = "Context model[%s] parent[%s]".format(model, parent)
 
-  def lookup(path: Identifier, args: List[Any] = List.empty): Context[Any] = {
-    lookup(path.parts, args)
+  def lookup(path: IdentifierNode, args: List[Any] = List.empty): Context[Any] = {
+    println("looking up path: %s \n\tcontext: %s\n\targs: %s\n\n".format(path, this, args))
+    args match {
+      case identifiers: List[Identifier] =>
+        println("list of idents: %s".format(args))
+        lookup(path.value, identifiers.map(lookup(_).model))
+      case _ =>
+        lookup(path.value, args)
+    }
+
   }
+
+  def truthValue: Boolean = Context.truthValue(model)
+
+//  def lookup(path: Identifier, args: List[Any] = List.empty): Context[Any] = {
+//    lookup(path.parts, args)
+//  }
 
   private def lookup(path: List[String], args: List[Any]): Context[Any] = {
     path.head match {
@@ -86,14 +111,26 @@ trait Context[+T] extends ContextFactory with Loggable {
   }
 
   protected def invoke(methodName: String, args: List[Any] = Nil): Context[Any] = {
+    model.getClass.getMethods.map(_.getName).map(println)
+    /*
+     * In JavaScript you can have function names with hyphens, but is not
+     * really a thing in Java/Scala so we need to convert it to a format
+     * the JVM can handle. 'foo-bar' in JavaScript becomes 'foo$minusbar' in
+     * Java
+     */
+    val jsSupportedMethodName = methodName
+                                  .replace("-", "$minus")
+                                  .replace("@", "$at")
+                                  .replace(" ", "$u0020")
+
     getMethods(model.getClass)
-      .get(methodName + args.length)
+      .get(jsSupportedMethodName + args.length)
       .flatMap(invoke(_, args)).map {
         value =>
           createChild(value, this)
       }.orElse {
         model match {
-          case map:Map[String, _] => map.get(methodName).map( v => createChild(v, this))
+          case map:Map[String, _] => map.get(jsSupportedMethodName).map( v => createChild(v, this))
           case _ => None
         }
       }.getOrElse(createUndefined)
@@ -115,6 +152,8 @@ trait Context[+T] extends ContextFactory with Loggable {
       case e: java.lang.IllegalArgumentException => None
     }
   }
+
+
 
   /**
    * Returns a map containing the methods of the class - the reflection calls to generate this map

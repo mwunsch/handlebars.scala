@@ -39,6 +39,8 @@ publishTo <<= version { (v: String) =>
 
 publishArtifact in Test := false
 
+testOptions in Test += Tests.Argument("-oD")
+
 pomIncludeRepository := { _ => false }
 
 pomExtra := (

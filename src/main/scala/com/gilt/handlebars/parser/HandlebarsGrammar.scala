@@ -97,7 +97,7 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
   def dataName = "@" ~> path ^^ { DataNode(_) }
 
-  def path = not("else") ~> rep1sep(ID <~ not(EQUALS)| "..", SEPARATOR) ^^ { Identifier(_) }
+  def path = not("else") ~> rep1sep(ID <~ not(EQUALS) | ".." | ".", SEPARATOR) ^^ { Identifier(_) }
 
   def inverse = mustachify( pad("^" | "else") )
 
