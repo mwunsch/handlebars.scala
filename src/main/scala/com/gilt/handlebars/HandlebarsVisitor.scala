@@ -84,8 +84,8 @@ class HandlebarsVisitor[T](
     }
   }
 
-  def resolveMustache(path: Path, parameters: List[Path], escape: Boolean = true): String = {
-    val args = getArguments(parameters)
+  def resolveMustache(path: Path, parameters: List[PathOrLiteral], escape: Boolean = true): String = {
+    val args = convertArgsToContexts(parameters)
     val lookup = resolvePath(path.value, args).definedOrEmpty
     val resolution = lookup.context.toString
     if (escape)
@@ -101,13 +101,13 @@ class HandlebarsVisitor[T](
    * @param program the block to be rendered.
    * @param inverted when rendering a section, whether or it is inverted.
    */
-  def renderSection(path: Path, parameters: List[Path], program: Program, inverted: Boolean = false): String = {
+  def renderSection(path: Path, parameters: List[PathOrLiteral], program: Program, inverted: Boolean = false): String = {
     val result: String = {
       /*
        * Since the semantics of helpers differ somewhat from those of regular sections,
        * it is useful to handle them as separate cases.
        */
-      resolvePath(path.value, getArguments(parameters)) match {
+      resolvePath(path.value, convertArgsToContexts(parameters)) match {
         case hr: HelperResult[_] => renderHelperBlock(hr, program)
         case c => {
           if (logger.isDebugEnabled) {
@@ -237,10 +237,17 @@ class HandlebarsVisitor[T](
   }
 
   /**
-   * Map each path in the list to its resolution as a Context.
+   * Map each argument in the list to its resolution as a Context.
    */
-  private def getArguments(paths: List[Path]): List[Context[Any]] = {
-    paths map {path => resolvePath(path.value)}
+  private def convertArgsToContexts(args: List[PathOrLiteral]): List[Context[Any]] = {
+    args map {
+      _ match {
+        case path: Path => resolvePath(path.value)
+        case literal: StringLiteral => ChildContext(literal.value, Some(context))
+        case literal: DoubleLiteral => ChildContext(literal.value, Some(context))
+        case literal: LongLiteral => ChildContext(literal.value, Some(context))
+      }
+    }
   }
 
 }
@@ -361,4 +368,4 @@ case class HelperResult[+T](context: T, parent: Option[Context[Any]]) extends Co
 /**
  * The value to which all undefined paths resolve.
  */
-case class UndefinedValue
+case class UndefinedValue()
