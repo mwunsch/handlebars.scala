@@ -24,7 +24,7 @@ object PartialHandlebarsCache {
     cache.putIfAbsent(path, handlebars)
   }
 
-  def clearCache = cache.clear()
+  def clearCache() = cache.clear()
 
   /**
    * Searches a file in a class (jar) for partials and caches them
