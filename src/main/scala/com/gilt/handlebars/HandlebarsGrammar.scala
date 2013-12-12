@@ -7,15 +7,19 @@ abstract class Node extends Positional
 
 case class Content(value: String) extends Node
 case class Identifier(value: String) extends Node
-case class Inversion extends Node
-case class Path(value: List[Identifier]) extends Node {
+case class Inversion() extends Node
+abstract class PathOrLiteral extends Node
+case class Path(value: List[Identifier]) extends PathOrLiteral {
   def head: Identifier = value.head
   def tail: List[Identifier] = value.tail
 }
 case class Comment(value: String) extends Node
 case class Partial(value: Path) extends Node
+case class StringLiteral(value: String) extends PathOrLiteral
+case class DoubleLiteral(value: Double) extends PathOrLiteral
+case class LongLiteral(value: Long) extends PathOrLiteral
 case class Mustache(value: Path,
-    parameters: List[Path] = Nil,
+    parameters: List[PathOrLiteral] = Nil,
     escaped: Boolean = true) extends Node
 case class Section(name: Mustache, value: Program, inverted: Boolean = false) extends Node
 case class Program(value: List[Node], inverse: Option[Program] = None) extends Node
@@ -64,7 +68,17 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
   def mustachable = helper ^^ { case id ~ list => Mustache(id, list) } | path ^^ {Mustache(_)}
 
-  def helper = path ~ rep1(rep1(whiteSpace) ~> path)
+  def helper = path ~ rep1(rep1(whiteSpace) ~> pathOrLiteral)
+
+  def stringLit = "\"" ~> """([^"\p{Cntrl}\\]|\\[\\/bfnrt]|\\u[a-fA-F0-9]{4})*""".r  <~ "\"" ^^ {StringLiteral(_)}
+
+  def longLit = wholeNumber ^^ {s => LongLiteral(s.toInt) }
+
+  def doubleLit = """(\d+\.(\d*)?|\d*\.\d+)""".r ^^ {s => DoubleLiteral(s.toDouble)}
+
+  def lit = stringLit | doubleLit | longLit
+
+  def pathOrLiteral = path | lit
 
   def path = rep1sep(identifier, "/" | ".") ^^ {Path(_)}
 
