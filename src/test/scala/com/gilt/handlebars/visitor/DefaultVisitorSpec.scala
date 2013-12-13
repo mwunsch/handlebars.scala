@@ -103,17 +103,6 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       Handlebars("{{awesome frank}}")(context) should equal("Frank")
     }
 
-    it("paths with hyphens") {
-      val fooCtx = new {
-        val `foo-bar` = "baz"
-        val foo = new {
-          val `foo-bar` = "baz"
-        }
-      }
-      Handlebars("{{foo-bar}}")(fooCtx) should equal("baz")
-      Handlebars("{{foo.foo-bar}}")(fooCtx) should equal("baz")
-      Handlebars("{{foo/foo-bar}}")(fooCtx) should equal("baz")
-    }
 
     it("nested paths") {
       val ctx = new {
@@ -131,28 +120,6 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
         }
       }
       Handlebars("Goodbye {{alan/expression}} world!")(ctx) should equal("Goodbye  world!")
-    }
-
-    it("literal paths") {
-      val ctx1 = new {
-        val `@alan` = new {
-          val expression = "beautiful"
-        }
-      }
-      val ctx2 = new {
-        val `foo bar` = new {
-          val expression = "beautiful"
-        }
-      }
-      Handlebars("Goodbye {{[@alan]/expression}} world!")(ctx1) should equal("Goodbye beautiful world!")
-      Handlebars("Goodbye {{[foo bar]/expression}} world!")(ctx2) should equal("Goodbye beautiful world!")
-    }
-
-    it("literal references") {
-      val ctx = new {
-        val `foo bar` = "beautiful"
-      }
-      Handlebars("Goodbye {{[foo bar]}} world!")(ctx) should equal("Goodbye beautiful world!")
     }
   }
 

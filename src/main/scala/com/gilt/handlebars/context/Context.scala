@@ -111,26 +111,14 @@ trait Context[+T] extends ContextFactory with Loggable {
   }
 
   protected def invoke(methodName: String, args: List[Any] = Nil): Context[Any] = {
-    model.getClass.getMethods.map(_.getName).map(println)
-    /*
-     * In JavaScript you can have function names with hyphens, but is not
-     * really a thing in Java/Scala so we need to convert it to a format
-     * the JVM can handle. 'foo-bar' in JavaScript becomes 'foo$minusbar' in
-     * Java
-     */
-    val jsSupportedMethodName = methodName
-                                  .replace("-", "$minus")
-                                  .replace("@", "$at")
-                                  .replace(" ", "$u0020")
-
     getMethods(model.getClass)
-      .get(jsSupportedMethodName + args.length)
+      .get(methodName + args.length)
       .flatMap(invoke(_, args)).map {
         value =>
           createChild(value, this)
       }.orElse {
         model match {
-          case map:Map[String, _] => map.get(jsSupportedMethodName).map( v => createChild(v, this))
+          case map:Map[String, _] => map.get(methodName).map( v => createChild(v, this))
           case _ => None
         }
       }.getOrElse(createUndefined)

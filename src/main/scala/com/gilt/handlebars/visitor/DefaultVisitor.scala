@@ -6,7 +6,6 @@ import com.gilt.handlebars.parser._
 import com.gilt.handlebars.parser.Content
 import com.gilt.handlebars.parser.Comment
 import com.gilt.handlebars.parser.Program
-import org.apache.commons.lang.StringEscapeUtils
 
 object DefaultVisitor extends ClassCacheableContextFactory {
   def apply[T](base: T) = {
