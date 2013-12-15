@@ -3,11 +3,8 @@ package com.gilt.handlebars.visitor
 import org.scalatest.FunSpec
 import org.scalatest.matchers.ShouldMatchers
 import com.gilt.handlebars.Handlebars
+import com.gilt.handlebars.helper.Helper
 
-/**
- * User: chicks
- * Date: 12/1/13
- */
 class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
 
   describe("basic context") {
@@ -121,6 +118,110 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       }
       Handlebars("Goodbye {{alan/expression}} world!")(ctx) should equal("Goodbye  world!")
     }
+
+    it("current context path ({{.}}) doesn't hit helpers") {
+      val template = "test: {{.}}"
+      val awesomeHelper = Helper {
+        (context, args) =>
+          "awesome"
+      }
+      val builder = Handlebars.createBuilder(template).withHelpers(Map("awesome" -> awesomeHelper))
+      builder.build(null) should equal("test: ")
+    }
+
+    it("complex but empty paths") {
+      val ctx = new {
+        val person = new {
+          val name = null
+        }
+      }
+      val ctx2 = new {
+        val person = new {
+          val notName = "notName"
+        }
+      }
+
+      val template = "{{person/name}}"
+      Handlebars(template)(ctx) should equal("")
+      Handlebars(template)(ctx2) should equal("")
+    }
+
+    it("this keyword in paths") {
+      val template = "{{#goodbyes}}{{this}}{{/goodbyes}}"
+      val ctx = new {
+        val goodbyes = List("goodbye", "Goodbye", "GOODBYE")
+      }
+      Handlebars(template)(ctx) should equal("goodbyeGoodbyeGOODBYE")
+    }
+
+    /*
+     * This throws a compile error in the JavaScript implementation because of the use of 'this' in {{text/this/foo}}.
+     * However this works fine in scala since {{text/this/foo}} is effectively {{text/foo}} which can yield the
+     * desired result.
+     */
+    it("this keyword nested inside path") {
+      val template = "{{#hellos}}{{text/this/foo}}{{/hellos}}"
+      Handlebars(template)(new { val test = "test" }) should equal("")
+    }
+
+    case class Hellos(hellos: List[HelloText])
+    case class HelloText(text: String)
+
+    it("this keyword in helpers") {
+      val helpers = Map (
+        "foo" -> Helper {
+          (context, args) =>
+            "bar %s".format(args.toList(0))
+        }
+      )
+
+      val template = "{{#goodbyes}}{{foo this}}{{/goodbyes}}"
+      val ctx = new {
+        val goodbyes = List("goodbye", "Goodbye", "GOODBYE")
+      }
+      val hbs = Handlebars.createBuilder(template).withHelpers(helpers).build
+
+      hbs(ctx) should equal("bar goodbyebar Goodbyebar GOODBYE")
+
+      val template2 = "{{#hellos}}{{foo this/text}}{{/hellos}}"
+      val ctx2 = Hellos(List (
+          HelloText("hello"),
+          HelloText("Hello"),
+          HelloText("HELLO")
+        )
+      )
+      val hbs2 = Handlebars.createBuilder(template2).withHelpers(helpers).build
+
+      hbs2(ctx2) should equal("bar hellobar Hellobar HELLO")
+    }
+
+    /*
+     * This throws a compile error in the JavaScript implementation because of the use of 'this' in {{foo text/this/foo}}.
+     * However this works fine in scala since {{foo text/this/foo}} is effectively {{foo text/foo}} which can yield the
+     * desired result.
+     */
+    it("this keyword nested inside helpers param") {
+      val helpers = Map (
+        "foo" -> Helper {
+          (context, args) =>
+            "bar %s".format(args.toList(0))
+        }
+      )
+      val template = "{{#hellos}}{{foo text/this/foo}}{{/hellos}}"
+      val ctx = Hellos(List (
+        HelloText("hello"),
+        HelloText("Hello"),
+        HelloText("HELLO")
+      )
+      )
+      val hbs = Handlebars.createBuilder(template).withHelpers(helpers).build
+
+      // text.foo doesn't exist so the first argument for the helper is ""
+      hbs(ctx) should equal("bar bar bar ")
+    }
   }
 
+  describe("inverted sections") {
+
+  }
 }

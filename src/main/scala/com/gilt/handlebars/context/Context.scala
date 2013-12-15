@@ -66,16 +66,16 @@ trait Context[+T] extends ContextFactory with Loggable {
   val model: T
   val parent: Context[T]
 
-  def asOption: Option[Context[T]] = if (isUndefined) None else Some(this)
+  def asOption: Option[Context[T]] = if (isUndefined || model == null) None else Some(this)
   def notEmpty[A](fallback: Context[A]): Context[A] = if (isUndefined) fallback else this.asInstanceOf[Context[A]]
 
   override def toString = "Context model[%s] parent[%s]".format(model, parent)
 
   def lookup(path: IdentifierNode, args: List[Any] = List.empty): Context[Any] = {
-    println("looking up path: %s \n\tcontext: %s\n\targs: %s\n\n".format(path, this, args))
+//    println("looking up path: %s \n\tcontext: %s\n\targs: %s\n\n".format(path, this, args))
     args match {
       case identifiers: List[Identifier] =>
-        println("list of idents: %s".format(args))
+//        println("list of idents: %s".format(args))
         lookup(path.value, identifiers.map(lookup(_).model))
       case _ =>
         lookup(path.value, args)
@@ -94,7 +94,7 @@ trait Context[+T] extends ContextFactory with Loggable {
       case p if isUndefined => this
       case ParentIdentifier(p) =>
         if (isRoot) createUndefined else parent.lookup(path.tail, args)
-      case ThisIdentifier(p) => this
+      case ThisIdentifier(p) => if (path.tail.isEmpty) this else lookup(path.tail, args)
       case _ =>
         model match {
           case Some(m) => createChild(m, parent).lookup(path, args)
