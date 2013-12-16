@@ -122,7 +122,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
     it("current context path ({{.}}) doesn't hit helpers") {
       val template = "test: {{.}}"
       val awesomeHelper = Helper {
-        (context, args) =>
+        (context, args, visit) =>
           "awesome"
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("awesome" -> awesomeHelper))
@@ -170,7 +170,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
     it("this keyword in helpers") {
       val helpers = Map (
         "foo" -> Helper {
-          (context, args) =>
+          (context, args, visit) =>
             "bar %s".format(args.toList(0))
         }
       )
@@ -203,7 +203,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
     it("this keyword nested inside helpers param") {
       val helpers = Map (
         "foo" -> Helper {
-          (context, args) =>
+          (context, args, visit) =>
             "bar %s".format(args.toList(0))
         }
       )
@@ -222,6 +222,125 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
   }
 
   describe("inverted sections") {
+    it("inverted sections with unset value") {
+      val template = "{{#goodbyes}}{{this}}{{/goodbyes}}{{^goodbyes}}Right On!{{/goodbyes}}"
+      val ctx = new {
+        val notThere = ""
+      }
+      Handlebars(template)(ctx) should equal ("Right On!")
+    }
 
+    it("inverted section with false value") {
+      val template = "{{#goodbyes}}{{this}}{{/goodbyes}}{{^goodbyes}}Right On!{{/goodbyes}}"
+      val ctx = new {
+        val goodbyes = false
+      }
+      Handlebars(template)(ctx) should equal ("Right On!")
+    }
+
+    it("inverted section with empty set") {
+      val template = "{{#goodbyes}}{{this}}{{/goodbyes}}{{^goodbyes}}Right On!{{/goodbyes}}"
+      val ctx = new {
+        val goodbyes = List.empty
+      }
+      Handlebars(template)(ctx) should equal ("Right On!")
+    }
   }
+
+  describe("blocks") {
+    case class Goodbye(text: String, url: String = "")
+
+    it("array") {
+      val template = "{{#goodbyes}}{{text}}! {{/goodbyes}}cruel {{world}}!"
+      val ctx = new {
+        val world = "world"
+        val goodbyes = Iterable(Goodbye("goodbye"), Goodbye("Goodbye"), Goodbye("GOODBYE"))
+      }
+      Handlebars(template)(ctx) should equal("goodbye! Goodbye! GOODBYE! cruel world!")
+    }
+
+    it("array with @index") {
+      val template = "{{#goodbyes}}{{@index}}. {{text}}! {{/goodbyes}}cruel {{world}}!"
+      val ctx = new {
+        val world = "world"
+        val goodbyes = Iterable(Goodbye("goodbye"), Goodbye("Goodbye"), Goodbye("GOODBYE"))
+      }
+      Handlebars(template)(ctx) should equal("0. goodbye! 1. Goodbye! 2. GOODBYE! cruel world!")
+    }
+
+    it("empty block") {
+      val template = "{{#goodbyes}}{{/goodbyes}}cruel {{world}}!"
+      val ctx = new {
+        val world = "world"
+        val goodbyes = Iterable(Goodbye("goodbye"), Goodbye("Goodbye"), Goodbye("GOODBYE"))
+      }
+      Handlebars(template)(ctx) should equal("cruel world!")
+    }
+
+    it("empty block 2") {
+      val template = "{{#goodbyes}}{{/goodbyes}}cruel {{world}}!"
+      val ctx = new {
+        val world = "world"
+        val goodbyes = Iterable.empty
+      }
+      Handlebars(template)(ctx) should equal("cruel world!")
+    }
+
+    it("block with complex lookup") {
+      val template = "{{#goodbyes}}{{text}} cruel {{../name}}! {{/goodbyes}}"
+      val ctx = new {
+        val name = "Alan"
+        val goodbyes = Iterable(Goodbye("goodbye"), Goodbye("Goodbye"), Goodbye("GOODBYE"))
+      }
+      Handlebars(template)(ctx) should equal("goodbye cruel Alan! Goodbye cruel Alan! GOODBYE cruel Alan! ")
+    }
+
+    /*
+     * In JavasScript implementation the template below should not compile. handlebars.scala simply renders the invalid
+     * path, {{foo/../name}}, as an empty string.
+     */
+    it("block with complex lookup using nested context") {
+      val template = "{{#goodbyes}}{{text}} cruel {{foo/../name}}! {{/goodbyes}}"
+      val ctx = new {
+        val name = "Alan"
+        val goodbyes = Iterable(Goodbye("goodbye"), Goodbye("Goodbye"), Goodbye("GOODBYE"))
+      }
+      Handlebars(template)(ctx) should equal("goodbye cruel ! Goodbye cruel ! GOODBYE cruel ! ")
+    }
+
+    it("helper with complex lookup$") {
+      val template = "{{#goodbyes}}{{{link ../prefix}}}{{/goodbyes}}"
+      val ctx = new {
+        val prefix = "/root"
+        val goodbyes = Iterable(Goodbye("Goodbye", "goodbye"))
+      }
+      val helpers = Map(
+        "link" -> Helper {
+          (context, args, visit) =>
+            val obj = context.model.asInstanceOf[Goodbye]
+            """<a href="%s/%s">%s</a>""".format(args.toList(0), obj.url, obj.text)
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers).build
+      builder(ctx) should equal("<a href=\"/root/goodbye\">Goodbye</a>")
+    }
+
+    it("helper block with complex lookup expression") {
+      case class Alan(name: String)
+      val template = "{{#goodbyes}}{{../name}}{{/goodbyes}}"
+      val ctx = Alan("Alan")
+      val helpers = Map(
+        "goodbyes" -> Helper {
+          (context, args, visit) =>
+            val byes = List("goodbye", "Goodbye", "GOODBYE")
+            byes.map(bye => "%s %s! ".format(bye, visit(context))).mkString
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers).build
+      builder(ctx) should equal("goodbye Alan! Goodbye Alan! GOODBYE Alan! ")
+    }
+  }
+
+
+
 }

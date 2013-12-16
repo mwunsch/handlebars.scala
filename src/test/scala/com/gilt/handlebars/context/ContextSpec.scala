@@ -96,9 +96,9 @@ class ContextSpec extends FunSpec with ShouldMatchers with ClassCacheableContext
       ctx.lookup(getIdentifier("{{../name}}")).isUndefined should equal(true)
     }
 
-    it("looks up a path with nonexistent ancestors: '../../../../../../../name'") {
+    it("looks up a path with nonexistent ancestors, but stays on root node: '../../../../../../../name'") {
       val ctx = createChild(sale, createRoot(product))
-      ctx.lookup(getIdentifier("{{../../../../../../../name}}")).isUndefined should equal(true)
+      ctx.lookup(getIdentifier("{{../../../../../../../name}}")).model.toString should equal("Chuck Taylor")
     }
 
     it("looks up a path with nonexistent children: 'content.description.undefined.undefined'") {

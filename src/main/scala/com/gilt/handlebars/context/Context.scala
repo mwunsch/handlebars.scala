@@ -93,7 +93,8 @@ trait Context[+T] extends ContextFactory with Loggable {
     path.head match {
       case p if isUndefined => this
       case ParentIdentifier(p) =>
-        if (isRoot) createUndefined else parent.lookup(path.tail, args)
+//        if (isRoot) createUndefined else parent.lookup(path.tail, args)
+        if (isRoot) lookup(path.tail, args) else parent.lookup(path.tail, args)
       case ThisIdentifier(p) => if (path.tail.isEmpty) this else lookup(path.tail, args)
       case _ =>
         model match {
