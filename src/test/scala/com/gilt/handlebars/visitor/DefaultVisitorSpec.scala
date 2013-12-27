@@ -339,6 +339,64 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       val builder = Handlebars.createBuilder(template).withHelpers(helpers).build
       builder(ctx) should equal("goodbye Alan! Goodbye Alan! GOODBYE Alan! ")
     }
+
+    it("helper with complex lookup and nested template") {
+      val template = "{{#goodbyes}}{{#link ../prefix}}{{text}}{{/link}}{{/goodbyes}}"
+      val ctx = new {
+        val prefix = "/root"
+        val goodbyes = Iterable(Goodbye("Goodbye", "goodbye"))
+      }
+      val helpers = Map(
+        "link" -> Helper {
+          (context, args, visit) =>
+            val obj = context.model.asInstanceOf[Goodbye]
+            """<a href="%s/%s">%s</a>""".format(args.toList(0), obj.url, obj.text)
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers).build
+      builder(ctx) should equal("<a href=\"/root/goodbye\">Goodbye</a>")
+    }
+
+    it("block with deep nested complex lookup") {
+      case class Hash(omg: String, outer: Iterable[Inner])
+      case class Inner(inner: Iterable[Goodbye])
+      val template = "{{#outer}}Goodbye {{#inner}}cruel {{../../omg}}{{/inner}}{{/outer}}"
+      val ctx = Hash("OMG!", Iterable(Inner(Iterable(Goodbye("goodbye")))))
+
+      Handlebars(template)(ctx) should equal("Goodbye cruel OMG!")
+    }
+
+    it("block helper") {
+      case class Text(text: String)
+      val template = "{{#goodbyes}}{{text}}! {{/goodbyes}}cruel {{world}}!"
+      val helpers = Map(
+        "goodbyes" -> Helper {
+          (context, args, visit) =>
+            visit(Text("GOODBYE"))
+        }
+      )
+      val ctx = new {
+        val world = "world"
+      }
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers).build
+      builder(ctx) should equal("GOODBYE! cruel world!")
+    }
+
+    it("block helper staying in the same context") {
+      val template = "{{#form}}<p>{{name}}</p>{{/form}}"
+      val helpers = Map(
+        "form" -> Helper {
+          (context, args, visit) =>
+            "<form>%s</form>".format(visit(context))
+        }
+      )
+      val ctx = new {
+        val name = "Yehuda"
+      }
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers).build
+      builder(ctx) should equal("<form><p>Yehuda</p></form>")
+    }
+
   }
 
 

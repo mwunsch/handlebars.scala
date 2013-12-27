@@ -28,22 +28,22 @@ class DefaultVisitor[T](context: Context[T], helpers: Map[String, Helper]) exten
 //        println("params: %s".format(params))
         helpers.get(mustache.path.string).map(callHelper(_, context, mustache, mustache.params))
       }.getOrElse {
-        warn("Could not find path or helper: %s".format(mustache.path))
+        warn("Could not find path or helper: %s, context: %s".format(mustache.path, context))
         ""
       }
 
-      println("mustache: %s -> %s".format(mustache.path.string, value))
+//      println("mustache: %s -> %s".format(mustache.path.string, value))
 
       escapeMustache(value, mustache.unescaped)
     }
     case Block(mustache, program, inverse) => {
-      println("block: %s -> %s".format(mustache.path.string, context.lookup(mustache.path)))
+//      println("block: %s -> %s".format(mustache.path.string, context.lookup(mustache.path)))
       val lookedUpCtx = context.lookup(mustache.path)
       lookedUpCtx.asOption.map {
         ctx =>
           renderBlock(ctx, program, inverse)
       }.orElse {
-        println("--> program: %s".format(program))
+//        println("--> program: %s".format(program))
         helpers.get(mustache.path.string).map(callHelper(_, context, program, mustache.params))
       }.getOrElse {
 //        warn("Could not find path or helper for block: %s".format(mustache.path.string))
