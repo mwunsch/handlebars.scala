@@ -9,14 +9,17 @@ port.
 
 Helpers take the format of:
 
-    (context, args, visit) => {
+    (context, args, visit, inverse) => {
         // 'context' is the context of the current scope in which the helper was called
 
         // args is the list of params passed to a helper, e.g., {{helper "Sam"}}. args(0) -> "Sam". The param can also
         // be a reference to the context such as {{helper ../address}}
 
         // visit is a method that takes one parameter model:Any. model is the context that will be used when evaluating
-        // the body of the helper if it is a block helper
+        // the body of the helper if it is a block helper. Maps to the 'options.fn' function in JavaScript.
+
+        // inverse is an Option of a visit method. It is the "else" case of the #if helper or the inverse of a block:
+        // {{#block}}Noraml Output{{^}}Inverse Output{{/block}}. Maps to the 'options.inverse' function in JavaScript.
     }
 
 This differs greatly from the JavaScript implementation where you have access to 'this' which would be 'context' in the
