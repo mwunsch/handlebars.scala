@@ -2,8 +2,9 @@ package com.gilt.handlebars.visitor
 
 import org.scalatest.FunSpec
 import org.scalatest.matchers.ShouldMatchers
-import com.gilt.handlebars.Handlebars
+import com.gilt.handlebars.{context, Handlebars}
 import com.gilt.handlebars.helper.Helper
+import com.gilt.handlebars.context.Person
 
 class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
 
@@ -122,7 +123,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
     it("current context path ({{.}}) doesn't hit helpers") {
       val template = "test: {{.}}"
       val awesomeHelper = Helper {
-        (context, args, visit) =>
+        (context, args, visit, inverse) =>
           "awesome"
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("awesome" -> awesomeHelper))
@@ -170,7 +171,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
     it("this keyword in helpers") {
       val helpers = Map (
         "foo" -> Helper {
-          (context, args, visit) =>
+          (context, args, visit, inverse) =>
             "bar %s".format(args.toList(0))
         }
       )
@@ -203,7 +204,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
     it("this keyword nested inside helpers param") {
       val helpers = Map (
         "foo" -> Helper {
-          (context, args, visit) =>
+          (context, args, visit, inverse) =>
             "bar %s".format(args.toList(0))
         }
       )
@@ -316,7 +317,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       }
       val helpers = Map(
         "link" -> Helper {
-          (context, args, visit) =>
+          (context, args, visit, inverse) =>
             val obj = context.model.asInstanceOf[Goodbye]
             """<a href="%s/%s">%s</a>""".format(args.toList(0), obj.url, obj.text)
         }
@@ -331,7 +332,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       val ctx = Alan("Alan")
       val helpers = Map(
         "goodbyes" -> Helper {
-          (context, args, visit) =>
+          (context, args, visit, inverse) =>
             val byes = List("goodbye", "Goodbye", "GOODBYE")
             byes.map(bye => "%s %s! ".format(bye, visit(context))).mkString
         }
@@ -348,7 +349,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       }
       val helpers = Map(
         "link" -> Helper {
-          (context, args, visit) =>
+          (context, args, visit, inverse) =>
             val obj = context.model.asInstanceOf[Goodbye]
             """<a href="%s/%s">%s</a>""".format(args.toList(0), obj.url, obj.text)
         }
@@ -371,7 +372,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       val template = "{{#goodbyes}}{{text}}! {{/goodbyes}}cruel {{world}}!"
       val helpers = Map(
         "goodbyes" -> Helper {
-          (context, args, visit) =>
+          (context, args, visit, inverse) =>
             visit(Text("GOODBYE"))
         }
       )
@@ -386,7 +387,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       val template = "{{#form}}<p>{{name}}</p>{{/form}}"
       val helpers = Map(
         "form" -> Helper {
-          (context, args, visit) =>
+          (context, args, visit, inverse) =>
             "<form>%s</form>".format(visit(context))
         }
       )
@@ -397,8 +398,145 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       builder(ctx) should equal("<form><p>Yehuda</p></form>")
     }
 
+    it("block helper should have context in this") {
+      case class Person(name: String, id: Int)
+      case class People(people: List[Person])
+
+      val template = "<ul>{{#people}}<li>{{#link}}{{name}}{{/link}}</li>{{/people}}</ul>"
+      val helpers = Map(
+        "link" -> Helper {
+          (context, args, visit, inverse) =>
+            val self = context.model.asInstanceOf[Person]
+            "<a href=\"/people/%s\">%s</a>".format(self.id, visit(context))
+        }
+      )
+      val ctx = People(List(Person("Alan", 1), Person("Yehuda", 2)))
+
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers).build
+      builder(ctx) should equal("<ul><li><a href=\"/people/1\">Alan</a></li><li><a href=\"/people/2\">Yehuda</a></li></ul>")
+    }
+
+    it("block helper for undefined value") {
+      val template = "{{#empty}}shouldn't render{{/empty}}"
+      val ctx = new { val notUsed = "notUsed" }
+      Handlebars(template)(ctx) should equal("")
+    }
+
+    it("block helper passing a new context") {
+      case class Person(name: String)
+      case class Yehuda(yehuda: Person)
+
+      val template = "{{#form yehuda}}<p>{{name}}</p>{{/form}}"
+      val helpers = Map(
+        "form" -> Helper {
+          (context, args, visit, inverse) =>
+            "<form>%s</form>".format(visit(args.toList(0)))
+        }
+      )
+      val ctx = Yehuda(Person("Yehuda"))
+
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers).build
+      builder(ctx) should equal("<form><p>Yehuda</p></form>")
+    }
+
+    it("block helper passing a complex path context") {
+      case class Yehuda(yehuda: Person)
+      case class Person(name: String, cat: Cat)
+      case class Cat(name: String)
+
+      val template = "{{#form yehuda/cat}}<p>{{name}}</p>{{/form}}"
+      val helpers = Map (
+        "form" -> Helper {
+          (context, args, visit, inverse) =>
+            "<form>%s</form>".format(visit(args.toList(0)))
+        }
+      )
+      val ctx = Yehuda(Person("Yehuda", Cat("Harold")))
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers).build
+      builder(ctx) should equal("<form><p>Harold</p></form>")
+    }
+
+    it("nested block helpers") {
+      case class Yehuda(yehuda: Person)
+      case class Person(name: String)
+
+      val template = "{{#form yehuda}}<p>{{name}}</p>{{#link}}Hello{{/link}}{{/form}}"
+      val helpers = Map (
+        "link" -> Helper {
+          (context, args, visit, inverse) =>
+            val yehuda = context.model.asInstanceOf[Person]
+            "<a href='%s'>%s</a>".format(yehuda.name, visit(context))
+        },
+        "form" -> Helper {
+          (context, args, visit, inverse) =>
+            "<form>%s</form>".format(visit(args.toList(0)))
+        }
+      )
+      val ctx = Yehuda(Person("Yehuda"))
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers).build
+      builder(ctx) should equal("<form><p>Yehuda</p><a href='Yehuda'>Hello</a></form>")
+    }
+
+    it("block inverted sections") {
+      case class NoPeople(none: String)
+      val template = "{{#people}}{{name}}{{^}}{{none}}{{/people}}"
+      val ctx = NoPeople("No People")
+      Handlebars(template)(ctx) should equal("No People")
+    }
+
+    it("block inverted sections with empty arrays") {
+      case class NoPeople(none: String, people: List[Person])
+      case class Person(name: String)
+
+      val template = "{{#people}}{{name}}{{^}}{{none}}{{/people}}"
+      val ctx = NoPeople("No People", List.empty)
+      Handlebars(template)(ctx) should equal("No People")
+    }
+
+    it("block helper inverted sections") {
+      case class People(people: List[Person])
+      case class Person(name: String)
+      case class RootMessage(people: List[Person], message: String)
+
+      val string = "{{#list people}}{{name}}{{^}}<em>Nobody's here</em>{{/list}}"
+      val helpers = Map (
+        "list" -> Helper {
+          (context, args, visit, inverse) =>
+            args.toList(0) match {
+              case i:Iterable[Any] =>
+                if (i.isEmpty) {
+                  "<p>%s</p>".format(inverse.map(f => f(context)).getOrElse(""))
+                } else {
+                  val listItems = i.map(item => "<li>%s</li>".format(visit(item)))
+                  "<ul>%s</ul>".format(listItems.mkString)
+                }
+              case _ =>
+                inverse.map(f => f(context)).getOrElse("")
+            }
+        }
+      )
+      val hash = People(List(Person("Alan"), Person("Yehuda")))
+      val empty = People(List.empty)
+      val rootMessage = RootMessage(List.empty, "Nobody's here")
+
+      val messageString = "{{#list people}}Hello{{^}}{{message}}{{/list}}"
+
+      Handlebars.createBuilder(string)
+                .withHelpers(helpers)
+                .build(hash) should equal("<ul><li>Alan</li><li>Yehuda</li></ul>")
+
+      Handlebars.createBuilder(string)
+        .withHelpers(helpers)
+        .build(empty) should equal("<p><em>Nobody's here</em></p>")
+
+      Handlebars.createBuilder(messageString)
+        .withHelpers(helpers)
+        .build(rootMessage) should equal("<p>Nobody's here</p>")
+    }
+
+
+
+
+
   }
-
-
-
 }

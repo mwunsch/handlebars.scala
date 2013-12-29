@@ -9,13 +9,13 @@ import com.gilt.handlebars.visitor.DefaultVisitor
  * Date: 12/14/13
  */
 trait Helper {
-  def apply(context: Context[Any], args: Iterable[Any], visit: (Any) => String): String
+  def apply(context: Context[Any], args: Iterable[Any], visit: (Any) => String, inverse: Option[(Any) => String]): String
 }
 
 object Helper extends ClassCacheableContextFactory {
-  def apply(f: ((Context[Any], Iterable[Any], (Any) => String) => String)): Helper = {
+  def apply(f: ((Context[Any], Iterable[Any], (Any) => String, Option[(Any) => String]) => String)): Helper = {
     new Helper {
-      def apply(context: Context[Any], args: Iterable[Any], visit: (Any) => String): String = f(context, args, visit)
+      def apply(context: Context[Any], args: Iterable[Any], visit: (Any) => String, inverse: Option[(Any) => String]): String = f(context, args, visit, inverse)
     }
   }
 
@@ -30,7 +30,7 @@ object Helper extends ClassCacheableContextFactory {
 }
 
 class StaticHelper(staticValue: Any) extends Helper {
-  def apply(context: Context[Any], args: Iterable[Any], visit: (Any) => String): String = {
+  def apply(context: Context[Any], args: Iterable[Any], visit: (Any) => String, inverse: Option[(Any) => String]): String = {
     staticValue.toString
   }
 }

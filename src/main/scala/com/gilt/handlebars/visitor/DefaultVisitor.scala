@@ -79,6 +79,7 @@ class DefaultVisitor[T](context: Context[T], helpers: Map[String, Helper]) exten
   }
 
   protected def callHelper(helper: Helper, context: Context[Any], program: Node, params: List[ValueNode]): String = {
+//    println("callHelper: Params - %s".format(params))
     val args = params.map {
       case i:Identifier => {
 //        println("helper context: %s, path: %s, lookup -> %s".format(context.model, i, context.lookup(i).model))
@@ -90,6 +91,14 @@ class DefaultVisitor[T](context: Context[T], helpers: Map[String, Helper]) exten
       case _ => toString
     }
 
-    helper.apply(context, args, Helper.visitFunc(context, program, helpers))
+    val inverse: Option[Node] = program match {
+      case p:Program => p.inverse
+      case b:Block => b.inverse
+      case _ => None
+    }
+
+    val inverseFunc = inverse.map(node => Helper.visitFunc(context, node, helpers))
+
+    helper.apply(context, args, Helper.visitFunc(context, program, helpers), inverseFunc)
   }
 }
