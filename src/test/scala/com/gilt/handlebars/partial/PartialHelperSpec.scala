@@ -31,7 +31,7 @@ class PartialHelperSpec extends FunSpec with ShouldMatchers with PartialHelper {
         Partial(PartialName(Identifier(List("partials", "aPartial"))),None),
         Partial(PartialName(Identifier(List("filetest"))),None)
       )
-      println("program is: %s".format(program))
+//      println("program is: %s".format(program))
       filterPartials(program).toSet should equal(expected)
     }
   }
