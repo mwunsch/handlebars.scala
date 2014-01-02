@@ -56,7 +56,9 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
   def unescapedMustache =
       mustachify("{" ~> pad(path) <~ "}" ^^ {Mustache(_, escaped=false)}) |
-      mustachify("&" ~> pad(path) ^^ {Mustache(_, escaped=false)})
+      mustachify("{" ~> pad(helper) <~ "}" ^^ { case id ~ list => Mustache(id, list, escaped=false) }) |
+      mustachify("&" ~> pad(path) ^^ {Mustache(_, escaped=false)}) |
+      mustachify("&" ~> pad(helper) ^^ { case id ~ list => Mustache(id, list, escaped=false) })
 
   def mustache = not(elseStache) ~> mustachify(pad(mustachable))
 
