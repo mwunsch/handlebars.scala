@@ -9,7 +9,9 @@ import com.gilt.handlebars.helper.Helper
 trait Handlebars {
   def program: Program
 
-  def apply[T](context: T): String
+  // TODO: Need to allow the passage of helpers here as well. Or Not. And make everyone use HandlebarsBuilder until the
+  // very end.
+  def apply[T](context: T, data: Map[String, Any] = Map.empty): String
 
   def partials: Map[String, Handlebars]
 
@@ -19,7 +21,8 @@ trait Handlebars {
 class HandlebarsImpl(override val program: Program,
                      override val partials: Map[String, Handlebars],
                      override val helpers: Map[String, Helper]) extends Handlebars {
-  override def apply[T](context: T): String = DefaultVisitor(context, helpers).visit(program)
+//  println("program: %s".format(program))
+  override def apply[T](context: T, data: Map[String, Any] = Map.empty): String = DefaultVisitor(context, helpers, data).visit(program)
 }
 
 object Handlebars {

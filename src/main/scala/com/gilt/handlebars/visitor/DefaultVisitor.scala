@@ -6,51 +6,87 @@ import com.gilt.handlebars.parser._
 import com.gilt.handlebars.parser.Content
 import com.gilt.handlebars.parser.Comment
 import com.gilt.handlebars.parser.Program
-import com.gilt.handlebars.helper.{StaticHelper, Helper}
+import com.gilt.handlebars.helper.{HelperOptions, StaticHelper, Helper}
 
 object DefaultVisitor extends ClassCacheableContextFactory {
-  def apply[T](base: T, helpers: Map[String, Helper]) = {
-    new DefaultVisitor[T](createRoot(base), helpers)
+  def apply[T](base: T, helpers: Map[String, Helper], data: Map[String, Any]) = {
+    new DefaultVisitor[T](createRoot(base), helpers, data)
   }
 }
 
-class DefaultVisitor[T](context: Context[T], helpers: Map[String, Helper]) extends Visitor with Loggable with ClassCacheableContextFactory {
+class DefaultVisitor[T](context: Context[T], helpers: Map[String, Helper], data: Map[String, Any]) extends Visitor with Loggable with ClassCacheableContextFactory {
   def visit(node: Node): String = node match {
     case Content(value) => value
     case Comment(_) => ""
     case Program(statements, inverse) => statements.map(visit).mkString
-    case mustache:Mustache/*(path, params, hash, unescaped)*/ => {
+    case mustache:Mustache => {
 
-//      println("path %s, context lookup: %s".format(mustache.path, context.lookup(mustache.path, mustache.params)))
-      val value = context.lookup(mustache.path, mustache.params).asOption.map {
-        _.model.toString
-      }.orElse {
-//        println("params: %s".format(params))
-        helpers.get(mustache.path.string).map(callHelper(_, context, mustache, mustache.params))
-      }.getOrElse {
-        warn("Could not find path or helper: %s, context: %s".format(mustache.path, context))
-        ""
+      // I. There is no hash present on this {{mustache}}
+      if(mustache.hash.value.isEmpty) {
+        // 1. Check if path exists directly in the context
+        val value = context.lookup(mustache.path, mustache.params).asOption.map {
+          _.model.toString
+        }.orElse {
+        // 2. Check if path refers to a helper
+          helpers.get(mustache.path.string).map(callHelper(_, context, mustache, mustache.params))
+        }.orElse {
+        // 3. Check if path refers to provided data.
+          data.get(mustache.path.string).map {
+            // 3a. Check if path resolved to an IdentifierNode, probably the result of something that looks like
+            //     {{path foo=bar.baz}}. 'bar.baz' in this case gets converted to an IdentifierNode
+            case i:IdentifierNode => context.lookup(i).asOption.map(_.model.toString).getOrElse("")
+
+            // 3b. The data was something else, convert it to a string
+            case other => other.toString
+          }
+        }.getOrElse {
+        // 4. Could not find path in context, helpers or data.
+          warn("Could not find path or helper: %s, context: %s".format(mustache.path, context))
+          ""
+        }
+
+        escapeMustache(value, mustache.unescaped)
+      } else {
+      // II. There is a hash on this {{mustache}}. Start over with the hash information added to 'data'. All of the
+      //     data in the hash will be accessible to any child nodes of this {{mustache}}.
+        new DefaultVisitor(context, helpers, data ++ hashNode2DataMap(mustache.hash)).visit(mustache.copy(hash = HashNode(Map.empty)))
       }
 
-//      println("mustache: %s -> %s".format(mustache.path.string, value))
-
-      escapeMustache(value, mustache.unescaped)
     }
     case Block(mustache, program, inverse) => {
-//      println("block: %s -> %s".format(mustache.path.string, context.lookup(mustache.path)))
-      val lookedUpCtx = context.lookup(mustache.path)
-      lookedUpCtx.asOption.map {
-        ctx =>
-          renderBlock(ctx, program, inverse)
-      }.orElse {
-//        println("--> program: %s".format(program))
-        helpers.get(mustache.path.string).map(callHelper(_, context, program, mustache.params))
-      }.getOrElse {
-//        warn("Could not find path or helper for block: %s".format(mustache.path.string))
-        renderBlock(lookedUpCtx, program, inverse)
+      // I. There is no hash present on this block
+      if (mustache.hash.value.isEmpty) {
+        val lookedUpCtx = context.lookup(mustache.path)
+        // 1. Check if path exists directly in the context
+        lookedUpCtx.asOption.map {
+          ctx =>
+            renderBlock(ctx, program, inverse)
+        }.orElse {
+        // 2. Check if path refers to a helper
+          helpers.get(mustache.path.string).map(callHelper(_, context, program, mustache.params))
+        }.getOrElse {
+        // 3. path was not found in context, it will be 'falsy' by default
+          renderBlock(lookedUpCtx, program, inverse)
+        }
+      } else {
+      // II. There is a hash on this block. Start over with the hash information added to 'data'. All of the
+      //     data in the hash will be accessible to any child nodes of this block.
+        new DefaultVisitor(context, helpers, data ++ hashNode2DataMap(mustache.hash)).visit(program)
       }
+
     }
     case _ => toString
+  }
+
+  protected def hashNode2DataMap(node: HashNode): Map[String, Any] = {
+    node.value.map {
+      case (key, value) => value match {
+        case s:StringParameter => key -> s.value
+        case i:IntegerParameter => key -> i.value
+        case b:BooleanParameter => key -> b.value
+        case other => key -> other
+      }
+    }
   }
 
   protected def escapeMustache(value: String, unescaped: Boolean = true): String = {
@@ -62,14 +98,10 @@ class DefaultVisitor[T](context: Context[T], helpers: Map[String, Helper]) exten
   }
 
   protected def renderBlock(ctx: Context[Any], program: Program, inverse: Option[Program]): String = {
-//    println("renderBlock: ctx: %s, program: %s, inverse: %s".format(ctx, program, inverse))
-//    println("renderBlock: context - %s".format(context))
-
     if (ctx.truthValue) {
       ctx.model match {
         case l:Iterable[_] => l.zipWithIndex.map {
-          // TODO: pass index as 'data' when that is implemented, NOT a helper
-          case (item, idx) => new DefaultVisitor(createChild(item, ctx), helpers + ("index" -> new StaticHelper(idx))).visit(program)
+          case (item, idx) => new DefaultVisitor(createChild(item, ctx), helpers, data + ("index" -> idx)).visit(program)
         }.mkString
         case _ => visit(program)
       }
@@ -79,11 +111,14 @@ class DefaultVisitor[T](context: Context[T], helpers: Map[String, Helper]) exten
   }
 
   protected def callHelper(helper: Helper, context: Context[Any], program: Node, params: List[ValueNode]): String = {
-//    println("callHelper: Params - %s".format(params))
     val args = params.map {
-      case i:Identifier => {
-//        println("helper context: %s, path: %s, lookup -> %s".format(context.model, i, context.lookup(i).model))
-        context.lookup(i).asOption.map(_.model).getOrElse {
+      case i:IdentifierNode => {
+        // 1. Look in the Context
+        context.lookup(i).asOption.map(_.model).orElse {
+        // 2. Check the global data, but treat it as a context in case the path is 'foo.bar'
+          createRoot(data).lookup(i).asOption.map(_.model)
+        }.getOrElse {
+        // 3. Give up, path wasn't found anywhere
           warn("Path not found for helper: %s".format(i.string))
           ""
         }
@@ -91,14 +126,16 @@ class DefaultVisitor[T](context: Context[T], helpers: Map[String, Helper]) exten
       case _ => toString
     }
 
+    // TODO: Refactor all of this. the Helper object could have an overloaded apply function that will do the below.
+    //       It will keep all the helper data manipulation in a single place
     val inverse: Option[Node] = program match {
       case p:Program => p.inverse
       case b:Block => b.inverse
       case _ => None
     }
 
-    val inverseFunc = inverse.map(node => Helper.visitFunc(context, node, helpers))
+    val inverseFunc = inverse.map(node => Helper.visitFunc(context, node, helpers, data))
 
-    helper.apply(context, args, Helper.visitFunc(context, program, helpers), inverseFunc)
+    helper.apply(context, HelperOptions(args, Helper.visitFunc(context, program, helpers, data), inverseFunc, data))
   }
 }

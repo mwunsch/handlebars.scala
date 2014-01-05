@@ -24,7 +24,7 @@ case class CachingHandlebarsImpl(program: Program,
   // TODO: Warn if we getOrElse is called. Didn't know how to re-load files.
   def reload = sourceFile.map(file => CachingHandlebars.apply(new File(file))).getOrElse(this)
 
-  def apply[T](context: T): String = "" // Call to HandlebarsVisitor
+  def apply[T](context: T, data: Map[String, Any] = Map.empty): String = "" // Call to HandlebarsVisitor
 }
 
 object CachingHandlebars extends PartialHelper {

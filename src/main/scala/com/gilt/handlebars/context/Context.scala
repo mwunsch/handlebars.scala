@@ -89,8 +89,9 @@ trait Context[+T] extends ContextFactory with Loggable {
 
   def lookup(path: IdentifierNode, args: List[Any] = List.empty): Context[Any] = {
 //    println("looking up path: %s \n\tcontext: %s\n\targs: %s\n\n".format(path, this, args))
+//    println("path.value = %s".format(path.value))
     args match {
-      case identifiers: List[Identifier] =>
+      case identifiers: List[IdentifierNode] =>
 //        println("list of idents: %s".format(args))
         lookup(path.value, identifiers.map(lookup(_).model))
       case _ =>

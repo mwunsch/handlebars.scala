@@ -1,36 +1,56 @@
 package com.gilt.handlebars.helper
 
-import com.gilt.handlebars.context.{ClassCacheableContextFactory, ClassCacheableContext, Context}
-import com.gilt.handlebars.parser.Node
+import com.gilt.handlebars.context.{ClassCacheableContextFactory, Context}
+import com.gilt.handlebars.parser.{DataNode, Node}
 import com.gilt.handlebars.visitor.DefaultVisitor
 
-/**
- * User: chicks
- * Date: 12/14/13
- */
 trait Helper {
-  def apply(context: Context[Any], args: Iterable[Any], visit: (Any) => String, inverse: Option[(Any) => String]): String
+  def apply(context: Context[Any], options: HelperOptions): String
 }
 
+case class HelperOptions(args: Iterable[Any],
+                         visit: (HelperContext) => String,
+                         inverse: Option[(HelperContext) => String],
+                         data: Map[String, Any]) extends ClassCacheableContextFactory {
+  def getData(key: String): String = {
+    data.get(key).map {
+      case d:DataNode => createRoot(data).lookup(d).asOption.map(_.model.toString).getOrElse("")
+      case nonNodeValue => nonNodeValue.toString
+    }.getOrElse("")
+  }
+
+  def firstArgAsString: String = args.headOption.map(_.toString).getOrElse("")
+}
+
+
 object Helper extends ClassCacheableContextFactory {
-  def apply(f: ((Context[Any], Iterable[Any], (Any) => String, Option[(Any) => String]) => String)): Helper = {
+  def apply(f: ((Context[Any], HelperOptions) => String)): Helper = {
     new Helper {
-      def apply(context: Context[Any], args: Iterable[Any], visit: (Any) => String, inverse: Option[(Any) => String]): String = f(context, args, visit, inverse)
+      def apply(context: Context[Any], options: HelperOptions): String = f(context, options)
     }
   }
 
-  def visitFunc(context: Context[Any], node: Node, helpers: Map[String, Helper]) = (model: Any) => {
-    val ctx = model match {
+  def visitFunc(context: Context[Any], node: Node, helpers: Map[String, Helper], data: Map[String, Any]) = (helperContext: HelperContext) => {
+    val visitorContext = helperContext.model match {
       case c:Context[_] => c
       case anyObj => createChild(anyObj, context)
     }
-//    println("Visit func called - ctx: %s, node: %s".format(ctx, node))
-    new DefaultVisitor(ctx, helpers).visit(node)
+
+    new DefaultVisitor(visitorContext, helpers, data ++ helperContext.data).visit(node)
   }
+
+  lazy val defaultHelpers: Map[String, Helper] = Map (
+    "with" -> new WithHelper,
+    "if" -> new IfHelper,
+    "each" -> new EachHelper,
+    "log" -> new LogHelper
+  )
 }
 
+case class HelperContext(model: Any, data: Map[String, Any] = Map.empty)
+
 class StaticHelper(staticValue: Any) extends Helper {
-  def apply(context: Context[Any], args: Iterable[Any], visit: (Any) => String, inverse: Option[(Any) => String]): String = {
+  def apply(context: Context[Any], options: HelperOptions): String = {
     staticValue.toString
   }
 }

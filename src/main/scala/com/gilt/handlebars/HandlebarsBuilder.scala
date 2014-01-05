@@ -17,14 +17,14 @@ trait HandlebarsBuilder {
 }
 
 case class DefaultHandlebarsBuilder(program: Program,
-                                    partials: Map[String, Handlebars] = Map.empty[String, Handlebars],
-                                    helpers: Map[String, Helper] = Map.empty[String, Helper]) extends  HandlebarsBuilder{
+                                    partials: Map[String, Handlebars] = Map.empty,
+                                    helpers: Map[String, Helper] = Map.empty) extends  HandlebarsBuilder{
 
   def withPartials(items: Map[String, Handlebars]) = copy(partials = partials ++ items)
 
   def withHelpers(items: Map[String, Helper]) = copy(helpers = helpers ++ items)
 
-  def build: Handlebars = new HandlebarsImpl(program, partials, helpers)
+  def build: Handlebars = new HandlebarsImpl(program, partials, helpers ++ Helper.defaultHelpers)
 }
 
 object DefaultHandlebarsBuilder {
