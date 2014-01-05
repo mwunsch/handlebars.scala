@@ -6,7 +6,7 @@ import com.gilt.handlebars.parser._
 import com.gilt.handlebars.parser.Content
 import com.gilt.handlebars.parser.Comment
 import com.gilt.handlebars.parser.Program
-import com.gilt.handlebars.helper.{HelperOptions, StaticHelper, Helper}
+import com.gilt.handlebars.helper.{HelperOptions, Helper}
 
 object DefaultVisitor extends ClassCacheableContextFactory {
   def apply[T](base: T, helpers: Map[String, Helper], data: Map[String, Any]) = {
@@ -20,20 +20,21 @@ class DefaultVisitor[T](context: Context[T], helpers: Map[String, Helper], data:
     case Comment(_) => ""
     case Program(statements, inverse) => statements.map(visit).mkString
     case mustache:Mustache => {
-
       // I. There is no hash present on this {{mustache}}
       if(mustache.hash.value.isEmpty) {
-        // 1. Check if path exists directly in the context
-        val value = context.lookup(mustache.path, mustache.params).asOption.map {
-          _.model.toString
+        // 1. Check if path refers to a helper
+        val value = helpers.get(mustache.path.string).map {
+          callHelper(_, context, mustache, mustache.params)
         }.orElse {
-        // 2. Check if path refers to a helper
-          helpers.get(mustache.path.string).map(callHelper(_, context, mustache, mustache.params))
+        // 2. Check if path exists directly in the context
+          context.lookup(mustache.path, mustache.params).asOption.map {
+            _.model.toString
+          }
         }.orElse {
         // 3. Check if path refers to provided data.
           data.get(mustache.path.string).map {
             // 3a. Check if path resolved to an IdentifierNode, probably the result of something that looks like
-            //     {{path foo=bar.baz}}. 'bar.baz' in this case gets converted to an IdentifierNode
+            //     {{path foo=bar.baz}}. 'bar.baz' in this case was converted to an IdentifierNode
             case i:IdentifierNode => context.lookup(i).asOption.map(_.model.toString).getOrElse("")
 
             // 3b. The data was something else, convert it to a string
@@ -53,25 +54,28 @@ class DefaultVisitor[T](context: Context[T], helpers: Map[String, Helper], data:
       }
 
     }
-    case Block(mustache, program, inverse) => {
+    case block:Block => {
       // I. There is no hash present on this block
-      if (mustache.hash.value.isEmpty) {
-        val lookedUpCtx = context.lookup(mustache.path)
-        // 1. Check if path exists directly in the context
-        lookedUpCtx.asOption.map {
-          ctx =>
-            renderBlock(ctx, program, inverse)
+      if (block.mustache.hash.value.isEmpty) {
+        val lookedUpCtx = context.lookup(block.mustache.path)
+        // 1. Check if path refers to a helper
+        helpers.get(block.mustache.path.string).map {
+          callHelper(_, context, block.program, block.mustache.params)
         }.orElse {
-        // 2. Check if path refers to a helper
-          helpers.get(mustache.path.string).map(callHelper(_, context, program, mustache.params))
+        // 2. Check if path exists directly in the context
+          lookedUpCtx.asOption.map {
+            ctx =>
+              renderBlock(ctx, block.program, block.inverse)
+          }
         }.getOrElse {
-        // 3. path was not found in context, it will be 'falsy' by default
-          renderBlock(lookedUpCtx, program, inverse)
+        // 3. path was not found in helpers or context, it will be 'falsy' by default
+          renderBlock(lookedUpCtx, block.program, block.inverse)
         }
       } else {
       // II. There is a hash on this block. Start over with the hash information added to 'data'. All of the
       //     data in the hash will be accessible to any child nodes of this block.
-        new DefaultVisitor(context, helpers, data ++ hashNode2DataMap(mustache.hash)).visit(program)
+        val blockWithoutHash = block.copy(mustache = block.mustache.copy(hash = HashNode(Map.empty)))
+        new DefaultVisitor(context, helpers, data ++ hashNode2DataMap(block.mustache.hash)).visit(blockWithoutHash)
       }
 
     }

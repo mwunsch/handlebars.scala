@@ -198,5 +198,302 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val builder = Handlebars.createBuilder(template).withHelpers(Map("let" -> letHelper))
       builder.build(ctx) should equal("hello world")
     }
+
+    // TODO: Come back to this when partials are implemented
+    ignore("passing in data to a compiled function that expects data - works with helpers in partials") {
+
+    }
+
+    it("passing in data to a compiled function that expects data - works with helpers and parameters") {
+      case class Ctx(exclaim: Boolean, world: String)
+      val template = "{{hello world}}"
+      val helloHelper = Helper {
+        (context, options) =>
+          val exclaim = context.lookup(List("exclaim"), List.empty).asOption.exists(_.model.asInstanceOf[Boolean])
+          "%s %s%s".format(options.getData("adjective"), options.firstArgAsString, if (exclaim) "!" else "")
+      }
+      val builder = Handlebars.createBuilder(template).withHelpers(Map("hello" -> helloHelper))
+      builder.build(Ctx(true, "world"), Map("adjective" -> "happy")) should equal("happy world!")
+    }
+
+    it("passing in data to a compiled function that expects data - works with block helpers") {
+      case class Ctx(exclaim: Boolean)
+      val template = "{{#hello}}{{world}}{{/hello}}"
+      val helpers = Map (
+        "hello" -> Helper {
+          (context, options) =>
+            options.visit(HelperContext(context))
+        },
+        "world" -> Helper {
+          (context, options) =>
+            val exclaim = context.lookup(List("exclaim"), List.empty).asOption.exists(_.model.asInstanceOf[Boolean])
+            "%s world%s".format(options.getData("adjective"), if (exclaim) "!" else "")
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+      builder.build(Ctx(true), Map("adjective" -> "happy")) should equal("happy world!")
+    }
+
+    it("passing in data to a compiled function that expects data - works with block helpers that use ..") {
+      case class Ctx(exclaim: Boolean, zomg: String)
+      case class Exclaim(exclaim: String)
+      val template = "{{#hello}}{{world ../zomg}}{{/hello}}"
+      val helpers = Map (
+        "hello" -> Helper {
+          (context, options) =>
+            options.visit(HelperContext(Exclaim("?")))
+        },
+        "world" -> Helper {
+          (context, options) =>
+            val exclaim = context.lookup(List("exclaim"), List.empty).asOption.map(_.model).getOrElse("")
+            "%s %s%s".format(options.getData("adjective"), options.firstArgAsString, exclaim)
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+      builder.build(Ctx(true, "world"), Map("adjective" -> "happy")) should equal("happy world?")
+    }
+
+    it("passing in data to a compiled function that expects data - data is passed to with block helpers where children use ..") {
+      case class Ctx(exclaim: Boolean, zomg: String)
+      case class Exclaim(exclaim: String)
+      val template = "{{#hello}}{{world ../zomg}}{{/hello}}"
+      val helpers = Map (
+        "hello" -> Helper {
+          (context, options) =>
+            "%s %s".format(options.getData("accessData"), options.visit(HelperContext(Exclaim("?"))))
+        },
+        "world" -> Helper {
+          (context, options) =>
+            val exclaim = context.lookup(List("exclaim"), List.empty).asOption.map(_.model).getOrElse("")
+            "%s %s%s".format(options.getData("adjective"), options.firstArgAsString, exclaim)
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+      builder.build(Ctx(true, "world"), Map("adjective" -> "happy", "accessData" -> "#win")) should equal("#win happy world?")
+    }
+
+    it("you can override inherited data when invoking a helper") {
+      case class Ctx1(exclaim: String, zomg: String)
+      case class Ctx2(exclaim: Boolean, zomg: String)
+      val template = "{{#hello}}{{world zomg}}{{/hello}}"
+      val helpers = Map (
+        "hello" -> Helper {
+          (context, options) =>
+            options.visit(HelperContext(Ctx1("?", "world"), Map("adjective" -> "sad")))
+        },
+        "world" -> Helper {
+          (context, options) =>
+            val exclaim = context.lookup(List("exclaim"), List.empty).asOption.map(_.model).getOrElse("")
+            "%s %s%s".format(options.getData("adjective"), options.firstArgAsString, exclaim)
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+      builder.build(Ctx2(true, "planet"), Map("adjective" -> "happy")) should equal("sad world?")
+    }
+
+    it("you can override inherited data when invoking a helper with depth") {
+      case class Exclaim(exclaim: String)
+      case class Ctx(exclaim: Boolean, zomg: String)
+      val template = "{{#hello}}{{world ../zomg}}{{/hello}}"
+      val helpers = Map (
+        "hello" -> Helper {
+          (context, options) =>
+            options.visit(HelperContext(Exclaim("?"), Map("adjective" -> "sad")))
+        },
+        "world" -> Helper {
+          (context, options) =>
+            val exclaim = context.lookup(List("exclaim"), List.empty).asOption.map(_.model).getOrElse("")
+            "%s %s%s".format(options.getData("adjective"), options.firstArgAsString, exclaim)
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+      builder.build(Ctx(true, "world"), Map("adjective" -> "happy")) should equal("sad world?")
+    }
+
+    it("helpers take precedence over same-named context properties") {
+      case class Ctx(goodbye: String, world: String)
+      val template = "{{goodbye}} {{cruel world}}"
+      val helpers = Map (
+        "goodbye" -> Helper {
+          (context, options) =>
+            val goodbye = context.lookup(List("goodbye"), List.empty).asOption.map(_.model).getOrElse("")
+            goodbye.toString.toUpperCase
+        },
+        "cruel" -> Helper {
+          (context, options) =>
+            val world = context.lookup(List("world"), List.empty).asOption.map(_.model).getOrElse("")
+            "cruel %s".format(world.toString.toUpperCase)
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+      builder.build(Ctx("goodbye", "world")) should equal("GOODBYE cruel WORLD")
+    }
+
+    it("helpers take precedence over same-named context properties$") {
+      case class Ctx(goodbye: String, world: String)
+      val template = "{{#goodbye}} {{cruel world}}{{/goodbye}}"
+      val helpers = Map (
+        "goodbye" -> Helper {
+          (context, options) =>
+            val goodbye = context.lookup(List("goodbye"), List.empty).asOption.map(_.model).getOrElse("")
+            "%s%s".format(goodbye.toString.toUpperCase, options.visit(HelperContext(context)))
+        },
+        "cruel" -> Helper {
+          (context, options) =>
+            val world = context.lookup(List("world"), List.empty).asOption.map(_.model).getOrElse("")
+            "cruel %s".format(world.toString.toUpperCase)
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+      builder.build(Ctx("goodbye", "world")) should equal("GOODBYE cruel WORLD")
+    }
+
+    it("Scoped names take precedence over helpers") {
+      case class Ctx(goodbye: String, world: String)
+      val template = "{{this.goodbye}} {{cruel world}} {{cruel this.goodbye}}"
+      val helpers = Map (
+        "goodbye" -> Helper {
+          (context, options) =>
+            val goodbye = context.lookup(List("goodbye"), List.empty).asOption.map(_.model).getOrElse("")
+            goodbye.toString.toUpperCase
+        },
+        "cruel" -> Helper {
+          (context, options) =>
+            "cruel %s".format(options.firstArgAsString.toUpperCase)
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+      builder.build(Ctx("goodbye", "world")) should equal("goodbye cruel WORLD cruel GOODBYE")
+    }
+
+    it("Scoped names take precedence over block helpers") {
+      case class Ctx(goodbye: String, world: String)
+      val template = "{{#goodbye}} {{cruel world}}{{/goodbye}} {{this.goodbye}}"
+      val helpers = Map (
+        "goodbye" -> Helper {
+          (context, options) =>
+            val goodbye = context.lookup(List("goodbye"), List.empty).asOption.map(_.model).getOrElse("")
+            "%s%s".format(goodbye.toString.toUpperCase, options.visit(HelperContext(context)))
+        },
+        "cruel" -> Helper {
+          (context, options) =>
+            "cruel %s".format(options.firstArgAsString.toUpperCase)
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+      builder.build(Ctx("goodbye", "world")) should equal("GOODBYE cruel WORLD goodbye")
+    }
+
+    it("helpers can take an optional hash") {
+      val template = "{{goodbye cruel=\"CRUEL\" world=\"WORLD\" times=12}}"
+      val helpers = Map (
+        "goodbye" -> Helper {
+          (context, options) =>
+            "GOODBYE %s %s %s TIMES".format(options.getData("cruel"), options.getData("world"), options.getData("times"))
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+      builder.build(new {}) should equal("GOODBYE CRUEL WORLD 12 TIMES")
+    }
+
+    it("helpers can take an optional hash with booleans") {
+      val helpers = Map (
+        "goodbye" -> Helper {
+          (context, options) =>
+            val print = options.getData("print").toBoolean
+            if (print) {
+              "GOODBYE %s %s".format(options.getData("cruel"), options.getData("world"))
+            } else {
+              "NOT PRINTING"
+            }
+        }
+      )
+      val template1 = "{{goodbye cruel=\"CRUEL\" world=\"WORLD\" print=true}}"
+      val builder1 = Handlebars.createBuilder(template1).withHelpers(helpers)
+      builder1.build(new {}) should equal("GOODBYE CRUEL WORLD")
+
+      val template2 = "{{goodbye cruel=\"CRUEL\" world=\"WORLD\" print=false}}"
+      val builder2 = Handlebars.createBuilder(template2).withHelpers(helpers)
+      builder2.build(new {}) should equal("NOT PRINTING")
+    }
+
+    it("block helpers can take an optional hash") {
+      val template = "{{#goodbye cruel=\"CRUEL\" times=12}}world{{/goodbye}}"
+      val helpers = Map (
+        "goodbye" -> Helper {
+          (context, options) =>
+            "GOODBYE %s %s %s TIMES".format(options.getData("cruel"), options.visit(HelperContext(context)), options.getData("times"))
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+      builder.build(new {}) should equal("GOODBYE CRUEL world 12 TIMES")
+    }
+
+    ignore("block helpers can take an optional hash with single quoted strings") {
+      // handlebars.scala does not support single quote strings for hashes
+      val template = "{{#goodbye cruel='CRUEL' times=12}}world{{/goodbye}}"
+      val helpers = Map (
+        "goodbye" -> Helper {
+          (context, options) =>
+            "GOODBYE %s %s %s TIMES".format(options.getData("cruel"), options.visit(HelperContext(context)), options.getData("times"))
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+      builder.build(new {}) should equal("GOODBYE CRUEL world 12 TIMES")
+    }
+
+    it("block helpers can take an optional hash with booleans") {
+      val helpers = Map (
+        "goodbye" -> Helper {
+          (context, options) =>
+            val print = options.getData("print").toBoolean
+            if (print) {
+              "GOODBYE %s %s".format(options.getData("cruel"), options.visit(HelperContext(context)))
+            } else {
+              "NOT PRINTING"
+            }
+        }
+      )
+      val template1 = "{{#goodbye cruel=\"CRUEL\" print=true}}world{{/goodbye}}"
+      val builder1 = Handlebars.createBuilder(template1).withHelpers(helpers)
+      builder1.build(new {}) should equal("GOODBYE CRUEL world")
+
+      val template2 = "{{#goodbye cruel=\"CRUEL\" print=false}}world{{/goodbye}}"
+      val builder2 = Handlebars.createBuilder(template2).withHelpers(helpers)
+      builder2.build(new {}) should equal("NOT PRINTING")
+    }
+
+    ignore("arguments to helpers can be retrieved from options hash in string form") {
+      // handlebars.scala does not support string parameter mode
+      val template = "{{wycats is.a slave.driver}}"
+      val helpers = Map (
+        "wycats" -> Helper {
+          (context, options) =>
+            "HELP ME MY BOSS %s %s".format(options.getArgument(0), options.getArgument(1))
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+      builder.build(new {}) should equal("HELP ME MY BOSS is.a slave.driver")
+    }
+
+    ignore("when using block form, arguments to helpers can be retrieved from options hash in string form") {
+      // handlebars.scala does not support string parameter mode
+    }
+
+    ignore("when inside a block in String mode, .. passes the appropriate context in the options hash") {
+      // handlebars.scala does not support string parameter mode
+    }
+
+    ignore("in string mode, information about the types is passed along") {
+      // handlebars.scala does not support string parameter mode
+    }
+
+    ignore("in string mode, hash parameters get type information") {
+      // handlebars.scala does not support string parameter mode
+    }
+
+    ignore("when inside a block in String mode, .. passes the appropriate context in the options hash to a block helper") {
+      // handlebars.scala does not support string parameter mode
+    }
   }
 }

@@ -19,7 +19,8 @@ case class HelperOptions(args: Iterable[Any],
     }.getOrElse("")
   }
 
-  def firstArgAsString: String = args.headOption.map(_.toString).getOrElse("")
+  def firstArgAsString: String = getArgument(0).toString
+  def getArgument(index: Int) = args.toList.lift(index).getOrElse("")
 }
 
 

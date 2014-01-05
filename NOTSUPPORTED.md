@@ -4,6 +4,8 @@ port.
 - Paths with special characters. Ex.: {{foo-bar}}
 - Literal Paths. Eg, {{[foo bar]}}, {{[foo bar]/expression}}, {{[@alan]/expression}}
 - handlebars.scala will not throw an exception when using the 'this' keyword in paths both in normal expressions {{person/this/foo}} and helpers {{foo person/this/bar}}
+- hashes using single quotes. E.g., {{foo cruel='CRUEL'}}
+- paramteres as strings. {{wycats is.a slave.driver}} - The first parameter to the wycats helper will result in the empty string, not "is.a"
 
 ## Helpers
 
