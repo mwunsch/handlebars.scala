@@ -22,9 +22,13 @@ case class CachingHandlebarsImpl(program: Program,
                                  sourceFile: Option[String]) extends CachingHandlebars {
 
   // TODO: Warn if we getOrElse is called. Didn't know how to re-load files.
+  // TODO: Use handlebars builder to construct the new instance?
   def reload = sourceFile.map(file => CachingHandlebars.apply(new File(file))).getOrElse(this)
 
-  def apply[T](context: T, data: Map[String, Any] = Map.empty): String = "" // Call to HandlebarsVisitor
+  def apply[T](context: T,
+               data: Map[String, Any] = Map.empty,
+               partials: Map[String, Handlebars] = Map.empty,
+               helpers: Map[String, Helper] = Map.empty): String = "" // Call to HandlebarsVisitor
 }
 
 object CachingHandlebars extends PartialHelper {
@@ -44,7 +48,7 @@ object CachingHandlebars extends PartialHelper {
   def apply(file: File, helpers: Map[String, Helper] = Map.empty[String, Helper]): Handlebars = {
     if (file.exists()) {
       try {
-        val partials = findPartials(file).mapValues(Handlebars(_))
+        val partials = findAllPartials(file).mapValues(Handlebars(_))
         apply(Source.fromFile(file).mkString, partials, helpers, Some(file.getAbsolutePath))
       } catch {
         case ex:Exception => sys.error("Error while loading template\n%s".format(ex))

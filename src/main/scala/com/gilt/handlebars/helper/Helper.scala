@@ -3,6 +3,7 @@ package com.gilt.handlebars.helper
 import com.gilt.handlebars.context.{ClassCacheableContextFactory, Context}
 import com.gilt.handlebars.parser.{DataNode, Node}
 import com.gilt.handlebars.visitor.DefaultVisitor
+import com.gilt.handlebars.Handlebars
 
 trait Helper {
   def apply(context: Context[Any], options: HelperOptions): String
@@ -31,13 +32,13 @@ object Helper extends ClassCacheableContextFactory {
     }
   }
 
-  def visitFunc(context: Context[Any], node: Node, helpers: Map[String, Helper], data: Map[String, Any]) = (helperContext: HelperContext) => {
+  def visitFunc(context: Context[Any], node: Node, partials: Map[String, Handlebars], helpers: Map[String, Helper], data: Map[String, Any]) = (helperContext: HelperContext) => {
     val visitorContext = helperContext.model match {
       case c:Context[_] => c
       case anyObj => createChild(anyObj, context)
     }
 
-    new DefaultVisitor(visitorContext, helpers, data ++ helperContext.data).visit(node)
+    new DefaultVisitor(visitorContext, partials, helpers, data ++ helperContext.data).visit(node)
   }
 
   lazy val defaultHelpers: Map[String, Helper] = Map (

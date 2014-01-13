@@ -3,9 +3,7 @@ package com.gilt.handlebars.visitor
 import org.scalatest.FunSpec
 import org.scalatest.matchers.ShouldMatchers
 import com.gilt.handlebars.Handlebars
-import com.gilt.handlebars.context.Person
 import com.gilt.handlebars.helper.{HelperContext, Helper}
-import com.gilt.handlebars.parser.HandlebarsGrammar
 
 /**
  * User: chicks

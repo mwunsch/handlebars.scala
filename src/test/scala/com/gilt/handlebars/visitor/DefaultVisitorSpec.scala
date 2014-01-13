@@ -24,16 +24,9 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       hbst(context) should equal("foo")
     }
 
-    // TODO: build escaping into grammar if possible
-//    it("escaping") {
-//      println("program: \n\n%s".format(Handlebars("\\{{foo}}").program))
-//      println("program: \n\n%s".format(Handlebars("\\\\{{foo}}").program))
-//      println("program: \n\n%s".format(Handlebars("\\\\ {{foo}}").program))
-//
-//      Handlebars("\\{{foo}}")(context) should equal("{{foo}}")
-//      Handlebars("\\\\{{foo}}")(context) should equal("\\foo")
-//      Handlebars("\\\\ {{foo}}")(context) should equal("\\\\ foo")
-//    }
+    // handlebars.scala doesn't support mustache escaping
+    ignore("escaping") { }
+
     it("compiling with a basic context") {
       Handlebars("Goodbye\\n{{cruel}}\\n{{world}}!")(context) should equal("Goodbye\\ncruel\\nworld!")
     }

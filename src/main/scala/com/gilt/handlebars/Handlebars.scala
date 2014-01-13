@@ -4,6 +4,7 @@ import com.gilt.handlebars.parser._
 import java.io.File
 import com.gilt.handlebars.visitor.DefaultVisitor
 import com.gilt.handlebars.helper.Helper
+import com.gilt.handlebars.partial.PartialHelper
 
 
 trait Handlebars {
@@ -11,7 +12,10 @@ trait Handlebars {
 
   // TODO: Need to allow the passage of helpers here as well. Or Not. And make everyone use HandlebarsBuilder until the
   // very end.
-  def apply[T](context: T, data: Map[String, Any] = Map.empty): String
+  def apply[T](context: T,
+               data: Map[String, Any] = Map.empty,
+               partials: Map[String, Handlebars] = Map.empty,
+               helpers: Map[String, Helper] = Map.empty): String
 
   def partials: Map[String, Handlebars]
 
@@ -20,9 +24,15 @@ trait Handlebars {
 
 class HandlebarsImpl(override val program: Program,
                      override val partials: Map[String, Handlebars],
-                     override val helpers: Map[String, Helper]) extends Handlebars {
-//  println("program: %s".format(program))
-  override def apply[T](context: T, data: Map[String, Any] = Map.empty): String = DefaultVisitor(context, helpers, data).visit(program)
+                     override val helpers: Map[String, Helper]) extends Handlebars with PartialHelper {
+
+  // TODO: check program for partials that are not in the partials map. See if they exist as strings in data
+  override def apply[T](context: T,
+                        data: Map[String, Any] = Map.empty,
+                        providedPartials: Map[String, Handlebars] = Map.empty,
+                        providedHelpers: Map[String, Helper] = Map.empty): String = {
+    DefaultVisitor(context, normalizePartialNames(partials ++ providedPartials), helpers ++ providedHelpers, data).visit(program)
+  }
 }
 
 object Handlebars {

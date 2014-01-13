@@ -7,14 +7,15 @@ import com.gilt.handlebars.parser.Content
 import com.gilt.handlebars.parser.Comment
 import com.gilt.handlebars.parser.Program
 import com.gilt.handlebars.helper.{HelperOptions, Helper}
+import com.gilt.handlebars.Handlebars
 
 object DefaultVisitor extends ClassCacheableContextFactory {
-  def apply[T](base: T, helpers: Map[String, Helper], data: Map[String, Any]) = {
-    new DefaultVisitor[T](createRoot(base), helpers, data)
+  def apply[T](base: T, partials: Map[String, Handlebars], helpers: Map[String, Helper], data: Map[String, Any]) = {
+    new DefaultVisitor[T](createRoot(base), partials, helpers, data)
   }
 }
 
-class DefaultVisitor[T](context: Context[T], helpers: Map[String, Helper], data: Map[String, Any]) extends Visitor with Loggable with ClassCacheableContextFactory {
+class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars],helpers: Map[String, Helper], data: Map[String, Any]) extends Visitor with Loggable with ClassCacheableContextFactory {
   def visit(node: Node): String = node match {
     case Content(value) => value
     case Comment(_) => ""
@@ -50,7 +51,7 @@ class DefaultVisitor[T](context: Context[T], helpers: Map[String, Helper], data:
       } else {
       // II. There is a hash on this {{mustache}}. Start over with the hash information added to 'data'. All of the
       //     data in the hash will be accessible to any child nodes of this {{mustache}}.
-        new DefaultVisitor(context, helpers, data ++ hashNode2DataMap(mustache.hash)).visit(mustache.copy(hash = HashNode(Map.empty)))
+        new DefaultVisitor(context, partials, helpers, data ++ hashNode2DataMap(mustache.hash)).visit(mustache.copy(hash = HashNode(Map.empty)))
       }
 
     }
@@ -75,11 +76,24 @@ class DefaultVisitor[T](context: Context[T], helpers: Map[String, Helper], data:
       // II. There is a hash on this block. Start over with the hash information added to 'data'. All of the
       //     data in the hash will be accessible to any child nodes of this block.
         val blockWithoutHash = block.copy(mustache = block.mustache.copy(hash = HashNode(Map.empty)))
-        new DefaultVisitor(context, helpers, data ++ hashNode2DataMap(block.mustache.hash)).visit(blockWithoutHash)
+        new DefaultVisitor(context, partials, helpers, data ++ hashNode2DataMap(block.mustache.hash)).visit(blockWithoutHash)
       }
-
     }
-    case _ => toString
+    case partial:Partial => {
+      val partialName = (partial.name.value match {
+        case i:IdentifierNode => i.string
+        case o => o.value.toString
+      }).replace("/", ".")
+
+      val partialContext = partial.context.map(context.lookup(_)).getOrElse(context)
+      partials.get(partialName).map {
+        _(partialContext.model, data, partials, helpers)
+      }.getOrElse {
+        warn("Could not find partial: %s".format(partialName))
+        ""
+      }
+    }
+    case n => n.toString
   }
 
   protected def hashNode2DataMap(node: HashNode): Map[String, Any] = {
@@ -105,9 +119,10 @@ class DefaultVisitor[T](context: Context[T], helpers: Map[String, Helper], data:
     if (ctx.truthValue) {
       ctx.model match {
         case l:Iterable[_] => l.zipWithIndex.map {
-          case (item, idx) => new DefaultVisitor(createChild(item, ctx), helpers, data + ("index" -> idx)).visit(program)
+          case (item, idx) => new DefaultVisitor(createChild(item, ctx), partials, helpers, data + ("index" -> idx)).visit(program)
         }.mkString
-        case _ => visit(program)
+        case model =>
+          new DefaultVisitor(createChild(model, context), partials, helpers, data).visit(program)
       }
     } else {
       inverse.map(visit).getOrElse("")
@@ -138,8 +153,8 @@ class DefaultVisitor[T](context: Context[T], helpers: Map[String, Helper], data:
       case _ => None
     }
 
-    val inverseFunc = inverse.map(node => Helper.visitFunc(context, node, helpers, data))
+    val inverseFunc = inverse.map(node => Helper.visitFunc(context, node, partials, helpers, data))
 
-    helper.apply(context, HelperOptions(args, Helper.visitFunc(context, program, helpers, data), inverseFunc, data))
+    helper.apply(context, HelperOptions(args, Helper.visitFunc(context, program, partials, helpers, data), inverseFunc, data))
   }
 }

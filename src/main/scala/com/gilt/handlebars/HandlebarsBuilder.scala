@@ -1,9 +1,11 @@
 package com.gilt.handlebars
 
-import com.gilt.handlebars.parser.{HandlebarsGrammar, Program}
+import com.gilt.handlebars.parser.{ProgramHelper, HandlebarsGrammar, Program}
 import com.gilt.handlebars.helper.Helper
 import java.io.File
 import scala.io.Source
+import com.gilt.handlebars.partial.PartialHelper
+import com.gilt.handlebars.logging.Loggable
 
 trait HandlebarsBuilder {
   def program: Program
@@ -27,28 +29,13 @@ case class DefaultHandlebarsBuilder(program: Program,
   def build: Handlebars = new HandlebarsImpl(program, partials, helpers ++ Helper.defaultHelpers)
 }
 
-object DefaultHandlebarsBuilder {
+object DefaultHandlebarsBuilder extends PartialHelper with ProgramHelper with Loggable {
   def apply(template: String): DefaultHandlebarsBuilder = {
-    val program = {
-      val parseResult = HandlebarsGrammar(template)
-      parseResult.getOrElse {
-        sys.error("Could not parse template:\n\n%s\n%s".format(parseResult.next.source, parseResult.next))
-      }
-    }
-
-    new DefaultHandlebarsBuilder(program)
+    new DefaultHandlebarsBuilder(programFromString(template))
   }
 
   def apply(file: File): DefaultHandlebarsBuilder = {
-    val program = {
-      if (file.exists()) {
-        val parseResult = HandlebarsGrammar(Source.fromFile(file).mkString)
-        parseResult.getOrElse(sys.error("Could not parse template:\n\n%s".format(parseResult.toString)))
-      } else {
-        sys.error("Could not load template: %s".format(file.getAbsolutePath))
-      }
-    }
-
-    new DefaultHandlebarsBuilder(program)
+    val partials = getTemplates(file)
+    new DefaultHandlebarsBuilder(programFromFile(file), partials)
   }
 }

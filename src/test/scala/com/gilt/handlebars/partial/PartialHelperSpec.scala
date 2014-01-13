@@ -31,14 +31,13 @@ class PartialHelperSpec extends FunSpec with ShouldMatchers with PartialHelper {
         Partial(PartialName(Identifier(List("partials", "aPartial"))),None),
         Partial(PartialName(Identifier(List("filetest"))),None)
       )
-//      println("program is: %s".format(program))
       filterPartials(program).toSet should equal(expected)
     }
   }
 
   describe("findPartials") {
     it("finds partial in a file") {
-      val partials = findPartials(new File("src/test/resources/filetest.handlebars"))
+      val partials = findAllPartials(new File("src/test/resources/filetest.handlebars"))
       val expected = Map(
         "localPartial" -> "src/test/resources/localPartial.handlebars",
         "partials/aPartial" -> "src/test/resources/partials/aPartial.handlebars",
@@ -50,7 +49,7 @@ class PartialHelperSpec extends FunSpec with ShouldMatchers with PartialHelper {
     }
 
     it("recursively finds partials in a file") {
-      val partials = findPartials(new File("src/test/resources/intermediate.handlebars"))
+      val partials = findAllPartials(new File("src/test/resources/intermediate.handlebars"))
       val expected = Map(
         "somethingElse" -> "src/test/resources/somethingElse.handlebars",
         "person" -> "src/test/resources/person.handlebars",
