@@ -95,9 +95,11 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
               path |
               dataName
 
-  def dataName = "@" ~> path ^^ { DataNode(_) }
+  def dataName = "@" ~> not("." | "..") ~> simplePath ^^ { DataNode(_) }
 
-  def path = not("else") ~> rep1sep(ID <~ not(EQUALS)| "..", SEPARATOR) ^^ { Identifier(_) }
+  def path = not("else") ~> rep1sep(ID <~ not(EQUALS) | PARENT | SELF, SEPARATOR) ^^ { Identifier(_) }
+
+  def simplePath = not("else") ~> rep1sep(ID <~ not(EQUALS), SEPARATOR) ^^ { Identifier(_) }
 
   def inverse = mustachify( pad("^" | "else") )
 
@@ -106,7 +108,7 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
   def blockify(prefix: Parser[String]): Parser[Pair[Mustache, Option[Program]]] = {
     blockstache(prefix) ~ opt(program) ~ mustachify("/" ~> pad(path)) >> {
       case (mustache ~ _ ~ close) if close != mustache.path => failure(mustache.path.string + " doesn't match " +
-        close.string)
+close.string)
       case (mustache ~ programOpt ~ _) => success((mustache, programOpt))
     }
   }
@@ -143,6 +145,10 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
   val ID = """[^\s!"#%-,\.\/;->@\[-\^`\{-~]+""".r | ("[" ~> """[^\]]*""".r <~ "]") | ident
 
   val SEPARATOR = "/" | "."
+
+  val PARENT = ".."
+
+  val SELF = "."
 
   val OPEN = delimiters._1
 
