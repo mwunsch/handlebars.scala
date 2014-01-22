@@ -238,12 +238,32 @@ class HandlebarsVisitorSpec extends Specification {
       visitor.visit(program) must beEqualTo("<strong>Hello</strong>, world.")
     }
 
+    "allow unescaped helper mustaches: {{{helper arg1 arg2}}}" in {
+      val program = Handlebars.parse("{{{greeting title addressee}}}.")
+      val visitor = HandlebarsVisitor(new {
+        def greeting(title: String, who: String) = "<strong>Hello</strong>, "+title+" "+who
+        val title = "Mr."
+        val addressee = "Mark"
+      })
+      visitor.visit(program) must beEqualTo("<strong>Hello</strong>, Mr. Mark.")
+    }
+
     "allow unescaped mustaches with the ampersand syntax" in {
       val program = Handlebars.parse("{{& greeting}}, world.")
       val visitor = HandlebarsVisitor(new {
         val greeting = "<strong>Hello</strong>"
       })
       visitor.visit(program) must beEqualTo("<strong>Hello</strong>, world.")
+    }
+
+    "allow unescaped helper mustaches with the ampersand syntax: {{& helper arg1 arg2}}" in {
+      val program = Handlebars.parse("{{& greeting title addressee}}.")
+      val visitor = HandlebarsVisitor(new {
+        def greeting(title: String, who: String) = "<strong>Hello</strong>, "+title+" "+who
+        val title = "Mr."
+        val addressee = "Mark"
+      })
+      visitor.visit(program) must beEqualTo("<strong>Hello</strong>, Mr. Mark.")
     }
 
     "visit a program and render an inverted section: {{^absent}}Nothing{{/absent}}" in {
@@ -282,8 +302,6 @@ class HandlebarsVisitorSpec extends Specification {
       val visitor = HandlebarsVisitor(new { val defined = new {}})
       visitor.visit(program) must beEqualTo("")
     }
-
-
 
     "visit a program and resolve a helper mustache: {{helper argument}}" in {
       val program = Handlebars.parse("{{greeting addressee}}.")
