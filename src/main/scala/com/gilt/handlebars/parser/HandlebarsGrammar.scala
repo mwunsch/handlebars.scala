@@ -6,6 +6,7 @@ import scala.util.parsing.input.{Positional, Position}
 object HandlebarsGrammar {
   protected val grammar = new HandlebarsGrammar(("{{","}}"))
   def apply(input: String): grammar.ParseResult[Program] = grammar(input)
+  def path(input: String): grammar.ParseResult[Identifier] = grammar.parseAll(grammar.path, input)
 }
 
 class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {

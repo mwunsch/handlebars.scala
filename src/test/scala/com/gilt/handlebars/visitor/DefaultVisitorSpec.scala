@@ -3,7 +3,7 @@ package com.gilt.handlebars.visitor
 import org.scalatest.FunSpec
 import org.scalatest.matchers.ShouldMatchers
 import com.gilt.handlebars.Handlebars
-import com.gilt.handlebars.helper.{HelperContext, Helper}
+import com.gilt.handlebars.helper.Helper
 
 class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
 
@@ -164,7 +164,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "foo" -> Helper {
           (context, options) =>
-            "bar %s".format(options.firstArgAsString)
+            "bar %s".format(options.argument(0).getOrElse(""))
         }
       )
 
@@ -197,7 +197,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "foo" -> Helper {
           (context, options) =>
-            "bar %s".format(options.firstArgAsString)
+            "bar %s".format(options.argument(0).getOrElse(""))
         }
       )
       val template = "{{#hellos}}{{foo text/this/foo}}{{/hellos}}"
@@ -309,9 +309,9 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       }
       val helpers = Map(
         "link" -> Helper {
-          (context, options) =>
-            val obj = context.model.asInstanceOf[Goodbye]
-            """<a href="%s/%s">%s</a>""".format(options.firstArgAsString, obj.url, obj.text)
+          (goodbye, options) =>
+            val obj = goodbye.asInstanceOf[Goodbye]
+            """<a href="%s/%s">%s</a>""".format(options.argument(0).get, obj.url, obj.text)
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers).build
@@ -326,7 +326,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
         "goodbyes" -> Helper {
           (context, options) =>
             val byes = List("goodbye", "Goodbye", "GOODBYE")
-            byes.map(bye => "%s %s! ".format(bye, options.visit(HelperContext(context)))).mkString
+            byes.map(bye => "%s %s! ".format(bye, options.visit(context))).mkString
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers).build
@@ -341,9 +341,9 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       }
       val helpers = Map(
         "link" -> Helper {
-          (context, options) =>
-            val obj = context.model.asInstanceOf[Goodbye]
-            """<a href="%s/%s">%s</a>""".format(options.args.toList(0), obj.url, obj.text)
+          (goodbye, options) =>
+            val obj = goodbye.asInstanceOf[Goodbye]
+            """<a href="%s/%s">%s</a>""".format(options.argument(0).get, obj.url, obj.text)
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers).build
@@ -365,7 +365,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       val helpers = Map(
         "goodbyes" -> Helper {
           (context, options) =>
-            options.visit(HelperContext(Text("GOODBYE")))
+            options.visit(Text("GOODBYE"))
         }
       )
       val ctx = new {
@@ -380,7 +380,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       val helpers = Map(
         "form" -> Helper {
           (context, options) =>
-            "<form>%s</form>".format(options.visit(HelperContext(context)))
+            "<form>%s</form>".format(options.visit(context))
         }
       )
       val ctx = new {
@@ -397,9 +397,9 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       val template = "<ul>{{#people}}<li>{{#link}}{{name}}{{/link}}</li>{{/people}}</ul>"
       val helpers = Map(
         "link" -> Helper {
-          (context, options) =>
-            val self = context.model.asInstanceOf[Person]
-            "<a href=\"/people/%s\">%s</a>".format(self.id, options.visit(HelperContext(context)))
+          (person, options) =>
+            val self = person.asInstanceOf[Person]
+            "<a href=\"/people/%s\">%s</a>".format(self.id, options.visit(person))
         }
       )
       val ctx = People(List(Person("Alan", 1), Person("Yehuda", 2)))
@@ -422,7 +422,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       val helpers = Map(
         "form" -> Helper {
           (context, options) =>
-            "<form>%s</form>".format(options.visit(HelperContext(options.args.toList(0))))
+            "<form>%s</form>".format(options.visit(options.argument(0).get))
         }
       )
       val ctx = Yehuda(Person("Yehuda"))
@@ -440,7 +440,7 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "form" -> Helper {
           (context, options) =>
-            "<form>%s</form>".format(options.visit(HelperContext(options.args.toList(0))))
+            "<form>%s</form>".format(options.visit(options.argument(0).get))
         }
       )
       val ctx = Yehuda(Person("Yehuda", Cat("Harold")))
@@ -455,13 +455,13 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       val template = "{{#form yehuda}}<p>{{name}}</p>{{#link}}Hello{{/link}}{{/form}}"
       val helpers = Map (
         "link" -> Helper {
-          (context, options) =>
-            val yehuda = context.model.asInstanceOf[Person]
-            "<a href='%s'>%s</a>".format(yehuda.name, options.visit(HelperContext(context)))
+          (person, options) =>
+            val yehuda = person.asInstanceOf[Person]
+            "<a href='%s'>%s</a>".format(yehuda.name, options.visit(person))
         },
         "form" -> Helper {
           (context, options) =>
-            "<form>%s</form>".format(options.visit(HelperContext(options.args.toList(0))))
+            "<form>%s</form>".format(options.visit(options.argument(0).get))
         }
       )
       val ctx = Yehuda(Person("Yehuda"))
@@ -494,16 +494,16 @@ class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "list" -> Helper {
           (context, options) =>
-            options.args.toList(0) match {
+            options.argument(0).get match {
               case i:Iterable[Any] =>
                 if (i.isEmpty) {
-                  "<p>%s</p>".format(options.inverse.map(f => f(HelperContext(context))).getOrElse(""))
+                  "<p>%s</p>".format(options.inverse(context))
                 } else {
-                  val listItems = i.map(item => "<li>%s</li>".format(options.visit(HelperContext(item))))
+                  val listItems = i.map(item => "<li>%s</li>".format(options.visit(item)))
                   "<ul>%s</ul>".format(listItems.mkString)
                 }
               case _ =>
-                options.inverse.map(f => f(HelperContext(context))).getOrElse("")
+                options.inverse(context)
             }
         }
       )

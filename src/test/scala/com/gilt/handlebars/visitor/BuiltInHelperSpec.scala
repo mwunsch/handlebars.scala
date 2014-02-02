@@ -3,7 +3,7 @@ package com.gilt.handlebars.visitor
 import org.scalatest.FunSpec
 import org.scalatest.matchers.ShouldMatchers
 import com.gilt.handlebars.Handlebars
-import com.gilt.handlebars.helper.{HelperContext, Helper}
+import com.gilt.handlebars.helper.Helper
 
 /**
  * User: chicks
@@ -77,7 +77,7 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val ctx = Ctx(List("a", "b", "c"))
       val detectDataHelper = Helper {
         (context, options) =>
-          options.getData("exclaim")
+          options.data("exclaim")
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("detectDataInsideEach" -> detectDataHelper))
 
@@ -97,8 +97,8 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val template = "{{hello}}"
       val helloHelper = Helper {
         (context, options) =>
-          val noun = context.lookup(List("noun"), List.empty).model
-          "%s %s".format(options.getData("adjective"), noun)
+          val noun = options.lookup("noun").get
+          "%s %s".format(options.data("adjective"), noun)
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("hello" -> helloHelper))
       builder.build(Ctx("cat"), Map("adjective" -> "happy")) should equal("happy cat")
@@ -114,7 +114,7 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val template = "{{#let world=\"world\"}}{{#if foo}}{{#if foo}}Hello {{@world}}{{/if}}{{/if}}{{/let}}"
       val letHelper = Helper {
         (context, options) =>
-          options.visit(HelperContext(context, Map.empty))
+          options.visit(context, Map.empty)
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("let" -> letHelper))
       builder.build(Ctx(true)) should equal("Hello world")
@@ -124,7 +124,7 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val template = "{{hello @world}}"
       val helloHelper = Helper {
         (context, options) =>
-          "Hello %s".format(options.firstArgAsString)
+          "Hello %s".format(options.argument(0).get)
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("hello" -> helloHelper))
       builder.build(new {}, Map("world" -> "world")) should equal("Hello world")
@@ -134,7 +134,7 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val template = "{{hello noun=@world}}"
       val helloHelper = Helper {
         (context, options) =>
-          "Hello %s".format(options.getData("noun"))
+          "Hello %s".format(options.data("noun"))
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("hello" -> helloHelper))
       builder.build(new {}, Map("world" -> "world")) should equal("Hello world")
@@ -145,7 +145,7 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val template = "{{hello @world.bar}}"
       val helloHelper = Helper {
         (context, options) =>
-          "Hello %s".format(options.firstArgAsString)
+          "Hello %s".format(options.argument(0).get)
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("hello" -> helloHelper))
       builder.build(new {}, Map("world" -> Bar("world"))) should equal("Hello world")
@@ -156,7 +156,7 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val template = "{{hello @world.bar}}"
       val helloHelper = Helper {
         (context, options) =>
-          "Hello %s".format(options.firstArgAsString)
+          "Hello %s".format(options.argument(0).get)
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("hello" -> helloHelper))
       // The JS version expects "Hello undefined" which is not a thing in scala. scandlebars will use "" instead
@@ -190,7 +190,7 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val template = "{{#let foo=bar.baz}}{{@foo}}{{/let}}"
       val letHelper = Helper {
         (context, options) =>
-          options.visit(HelperContext(context))
+          options.visit(context)
       }
       val ctx = Ctx(Baz("hello world"))
       val builder = Handlebars.createBuilder(template).withHelpers(Map("let" -> letHelper))
@@ -207,8 +207,8 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val template = "{{hello world}}"
       val helloHelper = Helper {
         (context, options) =>
-          val exclaim = context.lookup(List("exclaim"), List.empty).asOption.exists(_.model.asInstanceOf[Boolean])
-          "%s %s%s".format(options.getData("adjective"), options.firstArgAsString, if (exclaim) "!" else "")
+          val exclaim = options.lookup("exclaim").get.asInstanceOf[Boolean]
+          "%s %s%s".format(options.data("adjective"), options.argument(0).get, if (exclaim) "!" else "")
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("hello" -> helloHelper))
       builder.build(Ctx(true, "world"), Map("adjective" -> "happy")) should equal("happy world!")
@@ -220,12 +220,12 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "hello" -> Helper {
           (context, options) =>
-            options.visit(HelperContext(context))
+            options.visit(context)
         },
         "world" -> Helper {
           (context, options) =>
-            val exclaim = context.lookup(List("exclaim"), List.empty).asOption.exists(_.model.asInstanceOf[Boolean])
-            "%s world%s".format(options.getData("adjective"), if (exclaim) "!" else "")
+            val exclaim = options.lookup("exclaim").get.asInstanceOf[Boolean]
+            "%s world%s".format(options.data("adjective"), if (exclaim) "!" else "")
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -239,12 +239,12 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "hello" -> Helper {
           (context, options) =>
-            options.visit(HelperContext(Exclaim("?")))
+            options.visit(Exclaim("?"))
         },
         "world" -> Helper {
           (context, options) =>
-            val exclaim = context.lookup(List("exclaim"), List.empty).asOption.map(_.model).getOrElse("")
-            "%s %s%s".format(options.getData("adjective"), options.firstArgAsString, exclaim)
+            val exclaim = options.lookup("exclaim").getOrElse("")
+            "%s %s%s".format(options.data("adjective"), options.argument(0).get, exclaim)
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -258,12 +258,12 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "hello" -> Helper {
           (context, options) =>
-            "%s %s".format(options.getData("accessData"), options.visit(HelperContext(Exclaim("?"))))
+            "%s %s".format(options.data("accessData"), options.visit(Exclaim("?")))
         },
         "world" -> Helper {
           (context, options) =>
-            val exclaim = context.lookup(List("exclaim"), List.empty).asOption.map(_.model).getOrElse("")
-            "%s %s%s".format(options.getData("adjective"), options.firstArgAsString, exclaim)
+            val exclaim = options.lookup("exclaim").getOrElse("")
+            "%s %s%s".format(options.data("adjective"), options.argument(0).get, exclaim)
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -277,12 +277,12 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "hello" -> Helper {
           (context, options) =>
-            options.visit(HelperContext(Ctx1("?", "world"), Map("adjective" -> "sad")))
+            options.visit(Ctx1("?", "world"), Map("adjective" -> "sad"))
         },
         "world" -> Helper {
           (context, options) =>
-            val exclaim = context.lookup(List("exclaim"), List.empty).asOption.map(_.model).getOrElse("")
-            "%s %s%s".format(options.getData("adjective"), options.firstArgAsString, exclaim)
+            val exclaim = options.lookup("exclaim").getOrElse("")
+            "%s %s%s".format(options.data("adjective"), options.argument(0).get, exclaim)
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -296,12 +296,12 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "hello" -> Helper {
           (context, options) =>
-            options.visit(HelperContext(Exclaim("?"), Map("adjective" -> "sad")))
+            options.visit(Exclaim("?"), Map("adjective" -> "sad"))
         },
         "world" -> Helper {
           (context, options) =>
-            val exclaim = context.lookup(List("exclaim"), List.empty).asOption.map(_.model).getOrElse("")
-            "%s %s%s".format(options.getData("adjective"), options.firstArgAsString, exclaim)
+            val exclaim = options.lookup("exclaim").getOrElse("")
+            "%s %s%s".format(options.data("adjective"), options.argument(0).get, exclaim)
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -314,12 +314,12 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "goodbye" -> Helper {
           (context, options) =>
-            val goodbye = context.lookup(List("goodbye"), List.empty).asOption.map(_.model).getOrElse("")
+            val goodbye = options.lookup("goodbye").getOrElse("")
             goodbye.toString.toUpperCase
         },
         "cruel" -> Helper {
           (context, options) =>
-            val world = context.lookup(List("world"), List.empty).asOption.map(_.model).getOrElse("")
+            val world = options.lookup("world").getOrElse("")
             "cruel %s".format(world.toString.toUpperCase)
         }
       )
@@ -333,12 +333,12 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "goodbye" -> Helper {
           (context, options) =>
-            val goodbye = context.lookup(List("goodbye"), List.empty).asOption.map(_.model).getOrElse("")
-            "%s%s".format(goodbye.toString.toUpperCase, options.visit(HelperContext(context)))
+            val goodbye = options.lookup("goodbye").getOrElse("")
+            "%s%s".format(goodbye.toString.toUpperCase, options.visit(context))
         },
         "cruel" -> Helper {
           (context, options) =>
-            val world = context.lookup(List("world"), List.empty).asOption.map(_.model).getOrElse("")
+            val world = options.lookup("world").getOrElse("")
             "cruel %s".format(world.toString.toUpperCase)
         }
       )
@@ -352,12 +352,12 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "goodbye" -> Helper {
           (context, options) =>
-            val goodbye = context.lookup(List("goodbye"), List.empty).asOption.map(_.model).getOrElse("")
+            val goodbye = options.lookup("goodbye").getOrElse("")
             goodbye.toString.toUpperCase
         },
         "cruel" -> Helper {
           (context, options) =>
-            "cruel %s".format(options.firstArgAsString.toUpperCase)
+            "cruel %s".format(options.argument(0).get.toString.toUpperCase)
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -370,12 +370,12 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "goodbye" -> Helper {
           (context, options) =>
-            val goodbye = context.lookup(List("goodbye"), List.empty).asOption.map(_.model).getOrElse("")
-            "%s%s".format(goodbye.toString.toUpperCase, options.visit(HelperContext(context)))
+            val goodbye = options.lookup("goodbye").getOrElse("")
+            "%s%s".format(goodbye.toString.toUpperCase, options.visit(context))
         },
         "cruel" -> Helper {
           (context, options) =>
-            "cruel %s".format(options.firstArgAsString.toUpperCase)
+            "cruel %s".format(options.argument(0).get.toString.toUpperCase)
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -387,7 +387,7 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "goodbye" -> Helper {
           (context, options) =>
-            "GOODBYE %s %s %s TIMES".format(options.getData("cruel"), options.getData("world"), options.getData("times"))
+            "GOODBYE %s %s %s TIMES".format(options.data("cruel"), options.data("world"), options.data("times"))
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -398,9 +398,9 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "goodbye" -> Helper {
           (context, options) =>
-            val print = options.getData("print").toBoolean
+            val print = options.data("print").toBoolean
             if (print) {
-              "GOODBYE %s %s".format(options.getData("cruel"), options.getData("world"))
+              "GOODBYE %s %s".format(options.data("cruel"), options.data("world"))
             } else {
               "NOT PRINTING"
             }
@@ -420,7 +420,7 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "goodbye" -> Helper {
           (context, options) =>
-            "GOODBYE %s %s %s TIMES".format(options.getData("cruel"), options.visit(HelperContext(context)), options.getData("times"))
+            "GOODBYE %s %s %s TIMES".format(options.data("cruel"), options.visit(context), options.data("times"))
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -433,7 +433,7 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "goodbye" -> Helper {
           (context, options) =>
-            "GOODBYE %s %s %s TIMES".format(options.getData("cruel"), options.visit(HelperContext(context)), options.getData("times"))
+            "GOODBYE %s %s %s TIMES".format(options.data("cruel"), options.visit(context), options.data("times"))
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -444,9 +444,9 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "goodbye" -> Helper {
           (context, options) =>
-            val print = options.getData("print").toBoolean
+            val print = options.data("print").toBoolean
             if (print) {
-              "GOODBYE %s %s".format(options.getData("cruel"), options.visit(HelperContext(context)))
+              "GOODBYE %s %s".format(options.data("cruel"), options.visit(context))
             } else {
               "NOT PRINTING"
             }
@@ -467,7 +467,7 @@ class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
       val helpers = Map (
         "wycats" -> Helper {
           (context, options) =>
-            "HELP ME MY BOSS %s %s".format(options.getArgument(0), options.getArgument(1))
+            "HELP ME MY BOSS %s %s".format(options.argument(0).get, options.argument(1).get)
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
