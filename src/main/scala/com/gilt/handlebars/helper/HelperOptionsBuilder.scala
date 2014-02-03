@@ -8,14 +8,57 @@ import com.gilt.handlebars.parser.Program
 import com.gilt.handlebars.visitor.DefaultVisitor
 
 trait HelperOptions {
+  /**
+   * Retrieve an argument from the list provided to the helper by its index.
+   * @param index the index of the argument
+   * @return Option of the argument value, if it exists.
+   */
   def argument(index: Int): Option[Any]
+
+  /**
+   * Retrieve data provided to the Handlebars template by its key.
+   * @param key the key in the map of data provided to Handlebars.apply
+   * @return String value of the data retrieved
+   */
   def data(key: String): String
 
+  /**
+   * Evaluates the body of the helper using the provided model as a context.
+   * @param model the context for the body of the helper
+   * @return String result of evaluating the body.
+   */
   def visit(model: Any): String
+
+  /**
+   * Evaluates the body of the helper using the provided model as a context as well as additional data to be combined
+   * with the data provided by Handlebars.apply
+   * @param model the context for the body of the helper
+   * @param extraData data provided by the helper to be used while evaluating the body of the helper.
+   * @return String result of evaluating the body.
+   */
   def visit(model: Any, extraData: Map[String, Any]): String
+
+  /**
+   * Evaluate the inverse of body of the helper using the provided model as a context.
+   * @param model the context for the inverse of the body of the helper
+   * @return String result of evaluating the body.
+   */
   def inverse(model: Any): String
+
+  /**
+   * Evaluates the inverse of the body of the helper using the provided model as a context as well as additional data to
+   * be combined with the data provided by Handlebars.apply
+   * @param model the context for the inverse of the body of the helper
+   * @param extraData data provided by the helper to be used while evaluating the inverse of the body of the helper.
+   * @return String result of evaluating the inverse of the body.
+   */
   def inverse(model: Any, extraData: Map[String, Any]): String
 
+  /**
+   * Look up a path in the the current context. The one in which the helper was called.
+   * @param path The path to lookup in the context. e.g., ../name
+   * @return Some(model) where model is the object that resulted in the lookup. None otherwise.
+   */
   def lookup(path: String): Option[Any]
 }
 
@@ -27,7 +70,7 @@ class HelperOptionsBuilder(context: Context[Any],
                            params: List[ValueNode]) extends ClassCacheableContextFactory with Loggable {
 
   private val args = params.map {
-    case i:IdentifierNode => {
+    case i:IdentifierNode =>
       // 1. Look in the Context
       context.lookup(i).asOption.map(_.model).orElse {
         // 2. Check the global data, but treat it as a context in case the path is 'foo.bar'
@@ -37,7 +80,6 @@ class HelperOptionsBuilder(context: Context[Any],
         warn("Path not found for helper: %s".format(i.string))
         ""
       }
-    }
     case a => a.toString
   }
 

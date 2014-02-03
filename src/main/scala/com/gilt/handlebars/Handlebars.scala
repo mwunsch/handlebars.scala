@@ -10,8 +10,6 @@ import com.gilt.handlebars.partial.PartialHelper
 trait Handlebars {
   def program: Program
 
-  // TODO: Need to allow the passage of helpers here as well. Or Not. And make everyone use HandlebarsBuilder until the
-  // very end.
   def apply[T](context: T,
                data: Map[String, Any] = Map.empty,
                partials: Map[String, Handlebars] = Map.empty,
