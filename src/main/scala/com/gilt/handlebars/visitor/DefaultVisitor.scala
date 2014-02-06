@@ -6,7 +6,7 @@ import com.gilt.handlebars.parser._
 import com.gilt.handlebars.parser.Content
 import com.gilt.handlebars.parser.Comment
 import com.gilt.handlebars.parser.Program
-import com.gilt.handlebars.helper.{HelperOptions, Helper}
+import com.gilt.handlebars.helper.{HelperOptionsBuilder, HelperOptions, Helper}
 import com.gilt.handlebars.Handlebars
 
 object DefaultVisitor extends ClassCacheableContextFactory {
@@ -15,7 +15,7 @@ object DefaultVisitor extends ClassCacheableContextFactory {
   }
 }
 
-class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars],helpers: Map[String, Helper], data: Map[String, Any]) extends Visitor with Loggable with ClassCacheableContextFactory {
+class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars], helpers: Map[String, Helper], data: Map[String, Any]) extends Visitor with Loggable with ClassCacheableContextFactory {
   def visit(node: Node): String = node match {
     case Content(value) => value
     case Comment(_) => ""
@@ -25,7 +25,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars],h
       if(mustache.hash.value.isEmpty) {
         // 1. Check if path refers to a helper
         val value = helpers.get(mustache.path.string).map {
-          callHelper(_, context, mustache, mustache.params)
+          callHelper(_, mustache, mustache.params)
         }.orElse {
         // 2. Check if path exists directly in the context
           context.lookup(mustache.path, mustache.params).asOption.map {
@@ -61,7 +61,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars],h
         val lookedUpCtx = context.lookup(block.mustache.path)
         // 1. Check if path refers to a helper
         helpers.get(block.mustache.path.string).map {
-          callHelper(_, context, block.program, block.mustache.params)
+          callHelper(_, block.program, block.mustache.params)
         }.orElse {
         // 2. Check if path exists directly in the context
           lookedUpCtx.asOption.map {
@@ -129,32 +129,8 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars],h
     }
   }
 
-  protected def callHelper(helper: Helper, context: Context[Any], program: Node, params: List[ValueNode]): String = {
-    val args = params.map {
-      case i:IdentifierNode => {
-        // 1. Look in the Context
-        context.lookup(i).asOption.map(_.model).orElse {
-        // 2. Check the global data, but treat it as a context in case the path is 'foo.bar'
-          createRoot(data).lookup(i).asOption.map(_.model)
-        }.getOrElse {
-        // 3. Give up, path wasn't found anywhere
-          warn("Path not found for helper: %s".format(i.string))
-          ""
-        }
-      }
-      case _ => toString
-    }
-
-    // TODO: Refactor all of this. the Helper object could have an overloaded apply function that will do the below.
-    //       It will keep all the helper data manipulation in a single place
-    val inverse: Option[Node] = program match {
-      case p:Program => p.inverse
-      case b:Block => b.inverse
-      case _ => None
-    }
-
-    val inverseFunc = inverse.map(node => Helper.visitFunc(context, node, partials, helpers, data))
-
-    helper.apply(context, HelperOptions(args, Helper.visitFunc(context, program, partials, helpers, data), inverseFunc, data))
+  protected def callHelper(helper: Helper, program: Node, params: List[ValueNode]): String = {
+    val optionsBuilder = new HelperOptionsBuilder(context, partials, helpers, data, program, params)
+    helper.apply(context.model, optionsBuilder.build)
   }
 }

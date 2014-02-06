@@ -6,3 +6,4 @@ target/
 .idea/
 .idea_modules/
 lib
+.DS_Store
