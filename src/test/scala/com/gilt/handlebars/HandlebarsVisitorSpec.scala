@@ -3,9 +3,11 @@ package com.gilt.handlebars
 import org.specs2.mutable._
 import com.gilt.handlebars._
 import com.google.common.base.Optional
+import com.gilt.handlebars.Handlebars.Helper
 
 class HandlebarsVisitorSpec extends Specification {
   "A Handlebars Visitor" should {
+
     "visit a program with only content" in {
       val program = Handlebars.parse("bar")
       val visitor = HandlebarsVisitor("A Context[String]")
@@ -292,6 +294,18 @@ class HandlebarsVisitorSpec extends Specification {
         val addressee = "world"
       })
       visitor.visit(program) must beEqualTo("Hello, world.")
+    }
+
+    val testHelpers: Map[String, Helper[Any]] = Map("helperName" -> ((context, options, parentContext) => {
+      context.head + " " + options.hash("foo").toString + " " + options.hash("level").asInstanceOf[Long] * 2
+    }));
+
+    "visit a program and resolve a helper mustache with hash: {{helper argument foo=\"bar\"}}" in {
+      val program = Handlebars.parse("""{{helperName addressee foo="bar" level=21}}.""")
+      val visitor = HandlebarsVisitor(new {
+        val addressee = "world"
+      }, testHelpers)
+      visitor.visit(program) must beEqualTo("world bar 42.")
     }
 
     "visit a program and resolve a helper mustache with a string literal: {{helper \"argument\"}}" in {
