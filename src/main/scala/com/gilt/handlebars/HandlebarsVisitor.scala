@@ -11,14 +11,15 @@ import com.gilt.util.GuavaOptionalHelper
 
 object HandlebarsVisitor {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
-  def apply[T](base: T, helpers: Map[String,Helper[T]] = Map.empty[String,Helper[T]]) = {
-    new HandlebarsVisitor(new RootContext(base), helpers)
+  def apply[T](base: T, helpers: Map[String,Helper[T]] = Map.empty[String,Helper[T]], hash: Map[String, Any] = Map.empty[String, Any]) = {
+    new HandlebarsVisitor(new RootContext(base), helpers, hash)
   }
 }
 
 class HandlebarsVisitor[T](
   context: Context[T],
-  additionalHelpers: Map[String, Helper[T]] = Map.empty[String, Helper[T]]
+  additionalHelpers: Map[String, Helper[T]] = Map.empty[String, Helper[T]],
+  val hash: Map[String, Any] = Map.empty[String, Any]
 ) {
   import HandlebarsVisitor._
 
@@ -73,10 +74,15 @@ class HandlebarsVisitor[T](
       }
 
       helpers.get(list.head.value) map { fn =>
+        val (argsWithoutHash: List[Context[Any]], hash: List[Context[Any]]) = args.span(!_.context.isInstanceOf[Tuple2[_,_]])
+        val realHash = hash.map {
+          case hv: Context[Tuple2[String,_]] => hv.context
+          case e => logger.error("Argument "); ("","")
+        }.toMap
         if (logger.isDebugEnabled) {
           logger.debug("Found: '%s' in helpers.".format(list.head.value))
         }
-        HelperResult(fn(args.map(_.context), this, Some(context.context)), Some(context))
+        HelperResult(fn(argsWithoutHash.map(_.context), HandlebarsVisitor[T](this.context.context, this.additionalHelpers, realHash), Some(context.context)), Some(context))
       }
     } getOrElse {
       logger.warn("Unable to find value '%s' in context: '%s' or available helpers.".format(list.map(_.value).mkString("/"), context.context))
@@ -84,8 +90,8 @@ class HandlebarsVisitor[T](
     }
   }
 
-  def resolveMustache(path: Path, parameters: List[Path], escape: Boolean = true): String = {
-    val args = getArguments(parameters)
+  def resolveMustache(path: Path, parameters: List[Argument], escape: Boolean = true): String = {
+    val args = convertArgsToContexts(parameters)
     val lookup = resolvePath(path.value, args).definedOrEmpty
     val resolution = lookup.context.toString
     if (escape)
@@ -101,13 +107,13 @@ class HandlebarsVisitor[T](
    * @param program the block to be rendered.
    * @param inverted when rendering a section, whether or it is inverted.
    */
-  def renderSection(path: Path, parameters: List[Path], program: Program, inverted: Boolean = false): String = {
+  def renderSection(path: Path, parameters: List[Argument], program: Program, inverted: Boolean = false): String = {
     val result: String = {
       /*
        * Since the semantics of helpers differ somewhat from those of regular sections,
        * it is useful to handle them as separate cases.
        */
-      resolvePath(path.value, getArguments(parameters)) match {
+      resolvePath(path.value, convertArgsToContexts(parameters)) match {
         case hr: HelperResult[_] => renderHelperBlock(hr, program)
         case c => {
           if (logger.isDebugEnabled) {
@@ -236,11 +242,23 @@ class HandlebarsVisitor[T](
     ifHelper(List(context.headOption.map(!Context.truthValue(_)).get), options, parent)
   }
 
+  private def convertArgToContext(arg: Argument): Context[Any] = {
+    arg match {
+      case path: Path => resolvePath(path.value)
+      case literal: StringLiteral => ChildContext(literal.value, Some(context))
+      case literal: DoubleLiteral => ChildContext(literal.value, Some(context))
+      case literal: LongLiteral => ChildContext(literal.value, Some(context))
+      case keyValue: KeyValue => ChildContext((keyValue.ident.value, convertArgToContext(keyValue.lit).context), Some(context))
+    }
+  }
+
   /**
-   * Map each path in the list to its resolution as a Context.
+   * Map each argument in the list to its resolution as a Context.
    */
-  private def getArguments(paths: List[Path]): List[Context[Any]] = {
-    paths map {path => resolvePath(path.value)}
+  private def convertArgsToContexts(args: List[Argument]): List[Context[Any]] = {
+    args map {
+      convertArgToContext(_)
+    }
   }
 
 }
@@ -318,7 +336,8 @@ trait Context[+T] {
         }
       }
     } catch {
-      case e: java.lang.IllegalArgumentException => None
+      case e: java.lang.IllegalArgumentException => logger.error("Illegal argument invoking " + method.getName + " with arguments" + args.mkString,e); None
+      case e: Exception => logger.error("Eror invoking " + method.getName + " with arguments" + args.mkString, e); None
     }
   }
 
@@ -361,4 +380,4 @@ case class HelperResult[+T](context: T, parent: Option[Context[Any]]) extends Co
 /**
  * The value to which all undefined paths resolve.
  */
-case class UndefinedValue
+case class UndefinedValue()

@@ -3,9 +3,11 @@ package com.gilt.handlebars
 import org.specs2.mutable._
 import com.gilt.handlebars._
 import com.google.common.base.Optional
+import com.gilt.handlebars.Handlebars.Helper
 
 class HandlebarsVisitorSpec extends Specification {
   "A Handlebars Visitor" should {
+
     "visit a program with only content" in {
       val program = Handlebars.parse("bar")
       val visitor = HandlebarsVisitor("A Context[String]")
@@ -283,15 +285,68 @@ class HandlebarsVisitorSpec extends Specification {
       visitor.visit(program) must beEqualTo("")
     }
 
-
-
     "visit a program and resolve a helper mustache: {{helper argument}}" in {
       val program = Handlebars.parse("{{greeting addressee}}.")
       val visitor = HandlebarsVisitor(new {
-        def greeting(who: String) = "Hello, "+who
+        def greeting(who: String) = {
+          "Hello, " + who
+        }
         val addressee = "world"
       })
       visitor.visit(program) must beEqualTo("Hello, world.")
+    }
+
+    val testHelpers: Map[String, Helper[Any]] = Map("helperName" -> ((context, options, parentContext) => {
+      context.head + " " + options.hash("foo").toString + " " + options.hash("level").asInstanceOf[Long] * 2
+    }));
+
+    "visit a program and resolve a helper mustache with hash: {{helper argument foo=\"bar\"}}" in {
+      val program = Handlebars.parse("""{{helperName addressee foo="bar" level=21}}.""")
+      val visitor = HandlebarsVisitor(new {
+        val addressee = "world"
+      }, testHelpers)
+      visitor.visit(program) must beEqualTo("world bar 42.")
+    }
+
+    "visit a program and resolve a helper mustache with a string literal: {{helper \"argument\"}}" in {
+      val program = Handlebars.parse("{{greeting \"Dave\"}}.")
+      val visitor = HandlebarsVisitor(new {
+        def greeting(who: String) = {
+          "Hello, " + who.toUpperCase
+        }
+        val context = "This is not used"
+      })
+      visitor.visit(program) must beEqualTo("Hello, DAVE.")
+    }
+
+    "visit a program and resolve a helper mustache with a Long literal: {{helper <argument>}}" in {
+      val program = Handlebars.parse("{{double 23}}")
+      val visitor = HandlebarsVisitor(new {
+        def double(l: Long) = {
+          l * 2
+        }
+      })
+      visitor.visit(program) must beEqualTo("46")
+    }
+
+    "visit a program and resolve a helper mustache with a double literal: {{helper <argument>}}" in {
+      val program = Handlebars.parse("{{addHandlingFee 42.30}}")
+      val visitor = HandlebarsVisitor(new {
+        def addHandlingFee(d: Double) = {
+          d + 4.5
+        }
+      })
+      visitor.visit(program) must beEqualTo("46.8")
+    }
+
+    "visit a program and resolve a helper mustache with doubles written different ways : {{helper 1.2 .2 3}}" in {
+      val program = Handlebars.parse("{{sumFloats 1.2 .3 4}}")
+      val visitor = HandlebarsVisitor(new {
+        def sumFloats(d1: Double, d2: Double, d3: Double) = {
+          d1 + d2 + d3
+        }
+      })
+      visitor.visit(program) must beEqualTo("5.5")
     }
 
     "visit a program and resolve a helper mustache: {{helper arg1 arg2}}" in {

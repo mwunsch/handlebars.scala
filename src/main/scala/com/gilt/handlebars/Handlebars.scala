@@ -10,7 +10,7 @@ sealed trait Handlebars extends ProfilingUtils {
 
   /**
    * Applies the provided context to this template and returns the result as
-   * a [[java.lang.String]]
+   * a java.lang.String
    *
    * @param context the data to apply to the template
    * @param helpers to be used while visiting this template
@@ -27,7 +27,7 @@ sealed trait Handlebars extends ProfilingUtils {
   /**
    * Used to reset the handlebars to its original state. Aka, clearing the partials cache.
    */
-  def reset: Unit
+  def reset(): Unit
 }
 
 object Handlebars {
@@ -62,7 +62,7 @@ object Handlebars {
 }
 
 /**
- * Creates a [[com.gilt.handlebars.Handlebars]] from a [[java.lang.Class]]. Works
+ * Creates a [[com.gilt.handlebars.Handlebars]] from a java.lang.Class. Works
  * same way as [[com.gilt.handlebars.HandlebarsFromProgram]] plus handles partials.
  *
  * @param clazz the class from which to get template as resource
@@ -86,14 +86,14 @@ class HandlebarsFromClass(clazz: Class[_], path: String, delimiters: (String, St
     time("Rendered %s in".format(jarPath)) { template(context, helpers) }
   }
 
-  def reset {
+  def reset() {
     PartialHandlebarsCache.clearCache
     cachePartials(clazz, path, program)
   }
 }
 
 /**
- * Creates a [[com.gilt.handlebars.Handlebars]] from a [[java.io.File]]. Works
+ * Creates a [[com.gilt.handlebars.Handlebars]] from a java.io.File.
  * same way as [[com.gilt.handlebars.HandlebarsFromProgram]] plus handles partials.
  *
  * @param file File of the handlebars template
@@ -116,7 +116,7 @@ class HandlebarsFromFile(file: File, delimiters: (String, String) = ("{{", "}}")
     time("Rendered %s in".format(file.getPath)) { template(context, helpers) }
   }
 
-  def reset {
+  def reset() {
     PartialHandlebarsCache.clearCache
     cachePartials(file, program)
   }
@@ -129,5 +129,5 @@ class HandlebarsFromProgram(override val program: Program) extends Handlebars {
     HandlebarsVisitor(context, helpers).visit(program)
   }
 
-  def reset {}
+  def reset() {}
 }
