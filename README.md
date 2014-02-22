@@ -1,4 +1,4 @@
-A Scala implementation of [Handlebars](http://handlebarsjs.com/), an extension to and superset of the [Mustache](http://mustache.github.com/) templating language.
+A Scala implementation of [Handlebars](http://handlebarsjs.com/), an extension to and superset of the [Mustache](http://mustache.github.com/) templating language. Currently implements version [1.0.0](https://github.com/wycats/handlebars.js/tree/1.0.0) of the JavaScript version.
 
 This project began as an attempt to learn Scala and to experiment with Scala's [Parser Combinators](http://www.scala-lang.org/api/current/index.html#scala.util.parsing.combinator.Parsers) in an attempt to get handlebars.js templates working in Scala.
 
@@ -41,34 +41,60 @@ Pass those into Handlebars like so:
 
 Handlebars.scala will work just fine for [Mustache](http://mustache.github.com/mustache.5.html) templates, but includes features such as Paths and Helpers.
 
-The example above demonstrates the `apply` method of a `Handlebars` instance, which should be familiar to Scala-fans. `apply` takes an optional second argument: a Map of helper functions. The signature for apply looks like this:
+The example above demonstrates the `apply` method of a `Handlebars` instance, which should be familiar to Scala-fans. `apply` takes additional optional arguments:
 
-```scala
-def apply[T](context: T, helpers: Map[String,Helper[T]] = Map.empty[String,Helper[T]])
-```
++ `data` additional custom data to be referenced by @variable private variables.
++ `partials` custom partials in addition to the globally defined ones. These partials will override the globally provided ones.
++ `helpers` custom helpers in addition to the globally defined ones. These helpers will override the globally provided ones.
 
-`Handlebars.Helper[T]` translates to: `(Seq[Any], HandlebarsVisitor[T], Option[T]) => Any`
+ The signature for apply looks like this:
 
-Helper functions generally look like this:
+  def apply[T](context: T,
+        data: Map[String, Any] = Map.empty,
+        partials: Map[String, Handlebars] = Map.empty,
+        helpers: Map[String, Helper] = Map.empty): String
 
-    "name" -> ((context, options, parent) => something)
+## Helpers
+The trait for a helper looks like this:
 
-where `context` is the list of arguments sent to the helper and `parent` is the surrounding context of the block. The main method of `options` you should concern yourself with is `fn`, which acts similar to Handlebars.js in that it will pass the given object into the block for evaluation. Here's an example of my go-to `head` helper:
+  trait Helper {
+    def apply(model: Any, options: HelperOptions): String
+  }
 
-    "head" -> ((context, option, parent) => context.head match {
-      case list:Seq[_] => list.head
-      case _ => context.head
-    })
++ `model` the model of the context the helper was called from.
++ `options` provides helper functions to interact with the context and evaluate the body of the helper, if present.
+
+You can define a new helper by extending the trait above, or you can use companion obejct apply method to define one on the fly:
+
+  val fullNameHelper = Helper {
+    (model, options) =>
+      "%s %s".format(options.lookup("firstName"), options.lookup("lastName"))
+  }
+
+If you know that the information you need is on `model`, you can do the same thing by accessing first and last name on the model directly. However, you will be responsible for casting model to the correct type.
+
+  val fullNameHelper = Helper {
+    (model, options) =>
+      val person = model.asInstanceOf[Person]
+      "%s %s".format(person.firstName, person.lastName)
+  }
+
+### HelperOptions
+The `HelperOption` object gives you the tools you need to get things done in your helper. The primary methods are:
+
++ `def argument(index: Int): Option[Any]` Retrieve an argument from the list provided to the helper by its index.
++ `def data(key: String): String` Retrieve data provided to the Handlebars template by its key.
++ `def visit(model: Any): String` Evaluates the body of the helper using the provided model as a context.
++ `def inverse(model: Any): String` Evaluate the inverse of body of the helper using the provided model as a context.
++ `def lookup(path: String): Option[Any]` Look up a path in the the current context. The one in which the helper was called.
 
 ## Caveats
-
-Two things to note when using Handlebars.scala:
-
-**There is no else.** Handlebars.js handles _if/else_ type statements, but because of the nature of `else`, I did not include it here. I could not figure out a slick way to include it and stick to the functional style that Scala developers go gaga over. My Scala skills are not yet to the level where I can understand a clear path forward.
 
 **Implicit conversions will not work in a template**. Because Handlebars.scala makes heavy use of reflection. Bummer, I know. This leads me too...
 
 **Handlebars.scala makes heavy use of reflection**. This means that there could be unexpected behavior. Method overloading will behave in bizarre ways. There is likely a performance penalty. I'm not sophisticated enough in the arts of the JVM to know the implications of this.
+
+**Not everything from the JavaScript handlebars is supported**. See [NOTSUPPORTED](NOTSUPPORTED.md) for a list of the unsupported features. There are some things JavaScript can do that simply does not make sense to do in Scala.
 
 ## Thanks
 
@@ -84,7 +110,7 @@ The project uses [sbt](https://github.com/harrah/xsbt/wiki). Assuming you have s
 
 ## Copyright and License
 
-Copyright 2013 Mark Wunsch and Gilt Groupe, Inc.
+Copyright 2014 Mark Wunsch and Gilt Groupe, Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

@@ -10,14 +10,14 @@ import com.gilt.handlebars.partial.PartialHelper
 trait Handlebars {
   def program: Program
 
+  def partials: Map[String, Handlebars]
+
+  def helpers: Map[String, Helper]
+
   def apply[T](context: T,
                data: Map[String, Any] = Map.empty,
                partials: Map[String, Handlebars] = Map.empty,
                helpers: Map[String, Helper] = Map.empty): String
-
-  def partials: Map[String, Handlebars]
-
-  def helpers: Map[String, Helper]
 }
 
 class HandlebarsImpl(override val program: Program,
