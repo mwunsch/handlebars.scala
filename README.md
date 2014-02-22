@@ -49,35 +49,35 @@ The example above demonstrates the `apply` method of a `Handlebars` instance, wh
 
  The signature for apply looks like this:
 
-  def apply[T](context: T,
-        data: Map[String, Any] = Map.empty,
-        partials: Map[String, Handlebars] = Map.empty,
-        helpers: Map[String, Helper] = Map.empty): String
+    def apply[T](context: T,
+          data: Map[String, Any] = Map.empty,
+          partials: Map[String, Handlebars] = Map.empty,
+          helpers: Map[String, Helper] = Map.empty): String
 
 ## Helpers
 The trait for a helper looks like this:
 
-  trait Helper {
-    def apply(model: Any, options: HelperOptions): String
-  }
+    trait Helper {
+      def apply(model: Any, options: HelperOptions): String
+    }
 
 + `model` the model of the context the helper was called from.
 + `options` provides helper functions to interact with the context and evaluate the body of the helper, if present.
 
 You can define a new helper by extending the trait above, or you can use companion obejct apply method to define one on the fly:
 
-  val fullNameHelper = Helper {
-    (model, options) =>
-      "%s %s".format(options.lookup("firstName"), options.lookup("lastName"))
-  }
+    val fullNameHelper = Helper {
+      (model, options) =>
+        "%s %s".format(options.lookup("firstName"), options.lookup("lastName"))
+    }
 
 If you know that the information you need is on `model`, you can do the same thing by accessing first and last name on the model directly. However, you will be responsible for casting model to the correct type.
 
-  val fullNameHelper = Helper {
-    (model, options) =>
-      val person = model.asInstanceOf[Person]
-      "%s %s".format(person.firstName, person.lastName)
-  }
+    val fullNameHelper = Helper {
+      (model, options) =>
+        val person = model.asInstanceOf[Person]
+        "%s %s".format(person.firstName, person.lastName)
+    }
 
 ### HelperOptions
 The `HelperOption` object gives you the tools you need to get things done in your helper. The primary methods are:
