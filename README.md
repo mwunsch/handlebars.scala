@@ -47,7 +47,7 @@ The example above demonstrates the `apply` method of a `Handlebars` instance, wh
 + `partials` custom partials in addition to the globally defined ones. These partials will override the globally provided ones.
 + `helpers` custom helpers in addition to the globally defined ones. These helpers will override the globally provided ones.
 
- The signature for apply looks like this:
+The signature for apply looks like this:
 
     def apply[T](context: T,
           data: Map[String, Any] = Map.empty,
