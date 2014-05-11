@@ -2,6 +2,14 @@ A Scala implementation of [Handlebars](http://handlebarsjs.com/), an extension t
 
 This project began as an attempt to learn Scala and to experiment with Scala's [Parser Combinators](http://www.scala-lang.org/api/current/index.html#scala.util.parsing.combinator.Parsers) in an attempt to get handlebars.js templates working in Scala.
 
+## Installation
+
+If you're using SBT you can add this line to your build.sbt file.
+
+    libraryDependencies += "com.gilt" %% "handlebars" % "1.0.0"
+    
+## Usage
+
 Given a template:
 
     val template = """
