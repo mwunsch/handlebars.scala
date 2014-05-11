@@ -1,7 +1,8 @@
 package com.gilt.handlebars.parser
 
 import scala.util.parsing.combinator._
-import scala.util.parsing.input.{Positional, Position}
+import scala.util.parsing.input.CharSequenceReader
+import scala.util.matching.Regex
 
 object HandlebarsGrammar {
   protected val grammar = new HandlebarsGrammar(("{{","}}"))
@@ -13,7 +14,12 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
   override def skipWhitespace = false
 
   def apply(input: String) = {
-    parseAll(root, input)
+    if (input.isEmpty) {
+      Success(Program(List(Content(input))), new CharSequenceReader(""))
+    } else {
+      parseAll(root, input)
+    }
+
   }
 
   def root = program
