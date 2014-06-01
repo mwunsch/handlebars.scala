@@ -58,22 +58,6 @@ object Context {
     case /* UndefinedValue |*/ None | false | Nil | null | "" => false
     case _ => true
   }
-
-  /**
-   * Returns the parent of the provided context, but skips artificial levels in the hierarchy
-   * introduced by Iterable, Option, etc.
-   */
-  def safeParent(ctx: Context[_]): Context[Any] = {
-    if (ctx.isRoot || ctx.isUndefined) {
-      ctx
-    } else {
-      ctx.parent.model match {
-        case map:Map[_,_] => ctx.parent
-        case list:Iterable[_] => safeParent(ctx.parent.parent)
-        case _ => ctx.parent
-      }
-    }
-  }
 }
 
 trait Context[+T] extends ContextFactory with Loggable {
@@ -100,6 +84,22 @@ trait Context[+T] extends ContextFactory with Loggable {
 
   def truthValue: Boolean = Context.truthValue(model)
 
+  /**
+   * Returns the parent of the provided context, but skips artificial levels in the hierarchy
+   * introduced by Iterable, Option, etc.
+   */
+  def safeParent: Context[Any] = {
+    if (this.isRoot || this.isUndefined) {
+      this
+    } else {
+      this.parent.model match {
+        case map:Map[_,_] => this.parent
+        case list:Iterable[_] => this.parent.parent.safeParent
+        case _ => this.parent
+      }
+    }
+  }
+
   def lookup(path: List[String], args: List[Any]): Context[Any] = {
     path.head match {
       case p if isUndefined => this
@@ -111,9 +111,9 @@ trait Context[+T] extends ContextFactory with Loggable {
         } else {
           if (path.tail.isEmpty) {
             // Just the parent, '..'. Path doesn't access any property on it.
-            Context.safeParent(this)
+            safeParent
           } else {
-            Context.safeParent(this).lookup(path.tail, args)
+            safeParent.lookup(path.tail, args)
           }
         }
 
