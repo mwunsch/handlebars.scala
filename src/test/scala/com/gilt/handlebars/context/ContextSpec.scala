@@ -1,7 +1,6 @@
 package com.gilt.handlebars.context
 
-import org.scalatest.FunSpec
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.{ FunSpec, Matchers }
 import java.util.Date
 import com.gilt.handlebars.parser.{Mustache, Identifier, Program, HandlebarsGrammar}
 
@@ -32,7 +31,7 @@ case class Product(name: String, brand: String, content: Option[ProductContent] 
 case class ProductContent(description: String, title: String)
 case class Person(firstName: String, lastName: String)
 
-class ContextSpec extends FunSpec with ShouldMatchers with ClassCacheableContextFactory {
+class ContextSpec extends FunSpec with Matchers with ClassCacheableContextFactory {
   import ContextSpec._
 
   val sale = Sale("Sneakers!", new Date(), List(Stores.WOMEN, Stores.MEN))

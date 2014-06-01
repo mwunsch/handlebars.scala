@@ -8,17 +8,17 @@ trait ParserMatchers {
   val parsers: Parsers
   import parsers.{ParseResult, Success, NoSuccess, Input, Parser}
 
-  def successful[T] = BePropertyMatcher[ParseResult[T]] { (left: ParseResult[T]) =>
+  def successful = BePropertyMatcher[ParseResult[_]] { (left: ParseResult[_]) =>
     BePropertyMatchResult(left.successful, "successful")
   }
-  def success[T] = BePropertyMatcher[ParseResult[T]] { (left: ParseResult[T]) =>
+  def success = BePropertyMatcher[ParseResult[_]] { (left: ParseResult[_]) =>
     BePropertyMatchResult(left.successful, "success")
   }
-  def unsuccessful[T] = BePropertyMatcher[ParseResult[T]] { (left: ParseResult[T]) =>
+  def unsuccessful[_] = BePropertyMatcher[ParseResult[_]] { (left: ParseResult[_]) =>
     BePropertyMatchResult(!left.successful, "unsuccessful")
   }
 
-  def succeedOn[T](input: Input) = Matcher[Parser[T]] { (left: Parser[T]) =>
+  def succeedOn(input: Input) = Matcher[Parser[_]] { (left: Parser[_]) =>
     val result = left(input)
     result match {
       case Success(_, _) => MatchResult(
@@ -34,7 +34,7 @@ trait ParserMatchers {
     }
   }
 
-  def failOn[T](input: Input) = Matcher[Parser[T]] { (left: Parser[T]) =>
+  def failOn(input: Input) = Matcher[Parser[_]] { (left: Parser[_]) =>
     val result = left(input)
     result match {
       case Success(_, _) => MatchResult(
@@ -50,7 +50,7 @@ trait ParserMatchers {
     }
   }
 
-  def succeedWithResult[T](expectation: T) = Matcher[ParseResult[T]] { (left: ParseResult[T]) =>
+  def succeedWithResult[T](expectation: T)(implicit m:Manifest[T]) = Matcher[ParseResult[T]] { (left: ParseResult[T]) =>
     left match {
       case Success(res, _) => MatchResult(
         res == expectation,
@@ -65,7 +65,7 @@ trait ParserMatchers {
     }
   }
 
-  def failWithMessage[T](expectation: String) = Matcher[ParseResult[T]] { (left: ParseResult[T]) =>
+  def failWithMessage(expectation: String) = Matcher[ParseResult[_]] { (left: ParseResult[_]) =>
     left match {
       case Success(_, _) => MatchResult(
         false,
@@ -80,7 +80,7 @@ trait ParserMatchers {
     }
   }
 
-  def failAtPosition[T](line: Int, column: Int) = Matcher[ParseResult[T]] { (left: ParseResult[T]) =>
+  def failAtPosition(line: Int, column: Int) = Matcher[ParseResult[_]] { (left: ParseResult[_]) =>
     left match {
       case Success(_, _) => MatchResult(
         false,
@@ -95,7 +95,7 @@ trait ParserMatchers {
     }
   }
 
-  def failAtLine[T](line: Int) = Matcher[ParseResult[T]] { (left: ParseResult[T]) =>
+  def failAtLine(line: Int) = Matcher[ParseResult[_]] { (left: ParseResult[_]) =>
     left match {
       case Success(_, _) => MatchResult(
         false,

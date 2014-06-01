@@ -1,14 +1,13 @@
 package com.gilt.handlebars.visitor
 
-import org.scalatest.FunSpec
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.{ FunSpec, Matchers }
 import com.gilt.handlebars.Handlebars
 import java.io.File
 import com.gilt.handlebars.parser.TemplateNotFoundException
 import com.gilt.handlebars.context.Person
 
 
-class PartialSpec extends FunSpec with ShouldMatchers {
+class PartialSpec extends FunSpec with Matchers {
 
   describe("partials") {
     it("basic partials") {

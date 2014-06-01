@@ -1,11 +1,10 @@
 package com.gilt.handlebars.visitor
 
-import org.scalatest.FunSpec
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.{ FunSpec, Matchers }
 import com.gilt.handlebars.Handlebars
 import com.gilt.handlebars.helper.Helper
 
-class DefaultVisitorSpec extends FunSpec with ShouldMatchers {
+class DefaultVisitorSpec extends FunSpec with Matchers {
 
   describe("basic context") {
     val context = new {

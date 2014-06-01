@@ -1,11 +1,7 @@
 package com.gilt.handlebars.partial
 
-import org.scalatest.FunSpec
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.{ FunSpec, Matchers }
 import com.gilt.handlebars.parser._
-import com.gilt.handlebars.parser.Partial
-import com.gilt.handlebars.parser.Identifier
-import com.gilt.handlebars.parser.PartialName
 import scala.io.Source
 import java.io.File
 
@@ -14,7 +10,7 @@ import java.io.File
  * Date: 7/1/13
  * Time: 11:22 AM
  */
-class PartialHelperSpec extends FunSpec with ShouldMatchers with PartialHelper {
+class PartialHelperSpec extends FunSpec with Matchers with PartialHelper {
   describe("filterPartials") {
     it("filters partials out of a simple template") {
       val program = HandlebarsGrammar("{{> myPartial}}").get

@@ -1,7 +1,6 @@
 package com.gilt.handlebars.visitor
 
-import org.scalatest.FunSpec
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.{ FunSpec, Matchers }
 import com.gilt.handlebars.Handlebars
 import com.gilt.handlebars.helper.Helper
 
@@ -9,7 +8,7 @@ import com.gilt.handlebars.helper.Helper
  * User: chicks
  * Date: 12/29/13
  */
-class BuiltInHelperSpec extends FunSpec with ShouldMatchers {
+class BuiltInHelperSpec extends FunSpec with Matchers {
   describe("build-in helpers") {
     it("with") {
       case class Person(first: String, last: String)
