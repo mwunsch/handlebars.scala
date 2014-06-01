@@ -48,22 +48,11 @@ object ThisIdentifier {
     if (".".equals(s) || "this".equals(s)) Some(s) else None
   }
 }
-object Context {
-  /**
-   * mimic "falsy" values of Handlebars.js, plus care about Options
-   * @param a
-   * @return
-   */
-  def truthValue(a: Any): Boolean = a match {
-    case /* UndefinedValue |*/ None | false | Nil | null | "" => false
-    case _ => true
-  }
-}
 
 trait Context[+T] extends ContextFactory with Loggable {
   val isRoot: Boolean
   val isUndefined: Boolean
-  val model: T
+  val model: Any
   val parent: Context[T]
 
   def asOption: Option[Context[T]] = if (isUndefined || model == null) None else Some(this)
@@ -82,7 +71,15 @@ trait Context[+T] extends ContextFactory with Loggable {
     }
   }
 
-  def truthValue: Boolean = Context.truthValue(model)
+  /* mimic "falsy" values of Handlebars.js, plus care about Options
+   * @param a
+   * @return
+   */
+  def truthValue: Boolean = model match {
+    case /* UndefinedValue |*/ None | false | Nil | null | "" => false
+    case _ => true
+  }
+
 
   /**
    * Returns the parent of the provided context, but skips artificial levels in the hierarchy
