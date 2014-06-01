@@ -18,21 +18,21 @@ trait DefaultContextFactory extends ContextFactory {
     }
   }
 
-  def createRoot[T](model: T): Context[T] = {
+  def createRoot[T](_model: T): Context[T] = {
     new Context[T] with DefaultContextFactory{
-      val model: T = model
+      val model: T = _model
       val isUndefined: Boolean = false
       val isRoot: Boolean = true
       val parent: Context[T] = createUndefined
     }
   }
 
-  def createChild[T](model: T, parent: Context[T]): Context[T] = {
+  def createChild[T](_model: T, _parent: Context[T]): Context[T] = {
     new Context[T] with DefaultContextFactory {
-      val model: T = model
+      val model: T = _model
       val isUndefined: Boolean = false
       val isRoot: Boolean = false
-      val parent: Context[T] = parent
+      val parent: Context[T] = _parent
     }
   }
 }
@@ -68,7 +68,7 @@ object Context {
       ctx
     } else {
       ctx.parent.model match {
-        case map:Map[String,_] => ctx.parent
+        case map:Map[_,_] => ctx.parent
         case list:Iterable[_] => safeParent(ctx.parent.parent)
         case _ => ctx.parent
       }
@@ -89,12 +89,13 @@ trait Context[+T] extends ContextFactory with Loggable {
 
   def lookup(path: IdentifierNode, args: List[Any] = List.empty): Context[Any] = {
     args match {
-      case identifiers: List[IdentifierNode] =>
-        lookup(path.value, identifiers.map(lookup(_).model))
+      case identifiers: List[_] =>
+        lookup(path.value, identifiers.collect {
+          case n: IdentifierNode => lookup(n).model
+        })
       case _ =>
         lookup(path.value, args)
     }
-
   }
 
   def truthValue: Boolean = Context.truthValue(model)
@@ -120,7 +121,7 @@ trait Context[+T] extends ContextFactory with Loggable {
       case _ =>
         model match {
           case Some(m) => createChild(m, parent).lookup(path, args)
-          case map:Map[String, _] =>
+          case map:Map[_, _] =>
             invoke(path.head, args).asOption.map {
               ctx => if (path.tail.isEmpty) ctx else ctx.lookup(path.tail, args)
             }.getOrElse(parent.lookup(path, args))
@@ -140,7 +141,8 @@ trait Context[+T] extends ContextFactory with Loggable {
           createChild(value, this)
       }.orElse {
         model match {
-          case map:Map[String, _] => map.get(methodName).map( v => createChild(v, this))
+          case map:Map[_, _] =>
+            map.asInstanceOf[Map[String, _]].get(methodName).map( v => createChild(v, this))
           case _ => None
         }
       }.getOrElse(createUndefined)
