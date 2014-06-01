@@ -67,14 +67,14 @@ class HelperOptionsBuilder(context: Context[Any],
                            helpers: Map[String, Helper],
                            data: Map[String, Any],
                            program: Node,
-                           params: List[ValueNode]) extends ClassCacheableContextFactory with Loggable {
+                           params: List[ValueNode])(implicit contextFactory: ClassCacheableContextFactory) extends Loggable {
 
   private val args = params.map {
     case i:IdentifierNode =>
       // 1. Look in the Context
       context.lookup(i).asOption.map(_.model).orElse {
         // 2. Check the global data, but treat it as a context in case the path is 'foo.bar'
-        createRoot(data).lookup(i).asOption.map(_.model)
+        contextFactory.createRoot(data).lookup(i).asOption.map(_.model)
       }.getOrElse {
         // 3. Give up, path wasn't found anywhere
         warn("Path not found for helper: %s".format(i.string))

@@ -9,13 +9,15 @@ import com.gilt.handlebars.parser.Program
 import com.gilt.handlebars.helper.{HelperOptionsBuilder, Helper}
 import com.gilt.handlebars.Handlebars
 
+object DefaultFactory extends ClassCacheableContextFactory
 object DefaultVisitor extends ClassCacheableContextFactory {
   def apply[T](base: T, partials: Map[String, Handlebars], helpers: Map[String, Helper], data: Map[String, Any]) = {
+    implicit val defaultFactory = DefaultFactory
     new DefaultVisitor[T](createRoot(base), partials, helpers, data)
   }
 }
 
-class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars], helpers: Map[String, Helper], data: Map[String, Any]) extends Visitor with Loggable with ClassCacheableContextFactory {
+class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars], helpers: Map[String, Helper], data: Map[String, Any])(implicit val contextFactory: ClassCacheableContextFactory) extends Visitor with Loggable  {
   def visit(node: Node): String = {
     node match {
       case c:Content => visit(c)
@@ -130,10 +132,10 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars], 
     if (ctx.truthValue) {
       ctx.model match {
         case l:Iterable[_] => l.zipWithIndex.map {
-          case (item, idx) => new DefaultVisitor(createChild(item, ctx), partials, helpers, data + ("index" -> idx)).visit(program)
+          case (item, idx) => new DefaultVisitor(contextFactory.createChild(item, ctx), partials, helpers, data + ("index" -> idx)).visit(program)
         }.mkString
         case model =>
-          new DefaultVisitor(createChild(model, context), partials, helpers, data).visit(program)
+          new DefaultVisitor(contextFactory.createChild(model, context), partials, helpers, data).visit(program)
       }
     } else {
       inverse.map(visit).getOrElse("")
