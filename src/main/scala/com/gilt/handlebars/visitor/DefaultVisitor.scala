@@ -44,15 +44,13 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars], 
         callHelper(_, mustache, mustache.params)
       }.orElse {
         // 2. Check if path exists directly in the context
-        context.lookup(mustache.path, mustache.params).asOption.map {
-          _.model.toString
-        }
+        context.lookup(mustache.path, mustache.params).asOption.map(_.render)
       }.orElse {
         // 3. Check if path refers to provided data.
         data.get(mustache.path.string).map {
           // 3a. Check if path resolved to an IdentifierNode, probably the result of something that looks like
           //     {{path foo=bar.baz}}. 'bar.baz' in this case was converted to an IdentifierNode
-          case i:IdentifierNode => context.lookup(i).asOption.map(_.model.toString).getOrElse("")
+          case i:IdentifierNode => context.lookup(i).render
 
           // 3b. The data was something else, convert it to a string
           case other => other.toString
@@ -104,7 +102,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars], 
 
     val partialContext = partial.context.map(context.lookup(_)).getOrElse(context)
     partials.get(partialName).map {
-      _(partialContext.model, data, partials, helpers)
+      _(partialContext.model, data, partials, helpers) // TODO - partial rendering should receive a context; never interact with model directly.
     }.getOrElse {
       warn("Could not find partial: %s".format(partialName))
       ""
@@ -128,15 +126,12 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars], 
     }
   }
 
+  // TODO - move to context
   protected def renderBlock(ctx: Context[Any], program: Program, inverse: Option[Program]): String = {
     if (ctx.truthValue) {
-      ctx.model match {
-        case l:Iterable[_] => l.zipWithIndex.map {
-          case (item, idx) => new DefaultVisitor(contextFactory.createChild(item, ctx), partials, helpers, data + ("index" -> idx)).visit(program)
-        }.mkString
-        case model =>
-          new DefaultVisitor(contextFactory.createChild(model, context), partials, helpers, data).visit(program)
-      }
+      ctx.map { (itemContext, idx) =>
+        new DefaultVisitor(itemContext, partials, helpers, data ++ (idx.map { "index" -> _ })).visit(program)
+      }.mkString
     } else {
       inverse.map(visit).getOrElse("")
     }

@@ -60,6 +60,9 @@ trait Context[+T] extends Loggable {
   val contextFactory: ContextFactory
 
   def asOption: Option[Context[T]] = if (isUndefined || model == null) None else Some(this)
+
+  def render: String = if (isUndefined || model == null) "" else model.toString
+
   def notEmpty[A](fallback: Context[A]): Context[A] = if (isUndefined) fallback else this.asInstanceOf[Context[A]]
 
   override def toString = "Context model[%s] parent[%s]".format(model, parent)
@@ -134,6 +137,20 @@ trait Context[+T] extends Loggable {
     }
   }
 
+  def isCollection = {
+    model.isInstanceOf[Iterable[_]]
+  }
+
+  def map[R]( mapFn: (Context[T], Option[Int]) => R): Iterable[R] = {
+    model match {
+      case l:Iterable[_] => l.zipWithIndex.map {
+        case (item, idx) => mapFn(contextFactory.createChild(item.asInstanceOf[T], this), Some(idx))
+      }
+      case _ =>
+        Seq(mapFn(this, None))
+    }
+  }
+
   protected def invoke(methodName: String, args: List[Any] = Nil): Context[Any] = {
     getMethods(model.getClass)
       .get(methodName + args.length)
@@ -165,8 +182,6 @@ trait Context[+T] extends Loggable {
       case e: java.lang.IllegalArgumentException => None
     }
   }
-
-
 
   /**
    * Returns a map containing the methods of the class - the reflection calls to generate this map
