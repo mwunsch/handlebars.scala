@@ -1,6 +1,6 @@
 package com.gilt.handlebars.visitor
 
-import com.gilt.handlebars.context.{ClassCacheableContextFactory, Context}
+import com.gilt.handlebars.context.{ClassCacheableContextFactory, ContextFactory, Context}
 import com.gilt.handlebars.logging.Loggable
 import com.gilt.handlebars.parser._
 import com.gilt.handlebars.parser.Content
@@ -10,14 +10,14 @@ import com.gilt.handlebars.helper.{HelperOptionsBuilder, Helper}
 import com.gilt.handlebars.Handlebars
 
 object DefaultFactory extends ClassCacheableContextFactory
-object DefaultVisitor extends ClassCacheableContextFactory {
+object DefaultVisitor {
   def apply[T](base: T, partials: Map[String, Handlebars], helpers: Map[String, Helper], data: Map[String, Any]) = {
     implicit val defaultFactory = DefaultFactory
-    new DefaultVisitor[T](createRoot(base), partials, helpers, data)
+    new DefaultVisitor[T](DefaultFactory.createRoot(base), partials, helpers, data)
   }
 }
 
-class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars], helpers: Map[String, Helper], data: Map[String, Any])(implicit val contextFactory: ClassCacheableContextFactory) extends Visitor with Loggable  {
+class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars], helpers: Map[String, Helper], data: Map[String, Any])(implicit val contextFactory: ContextFactory) extends Visitor with Loggable  {
   def visit(node: Node): String = {
     node match {
       case c:Content => visit(c)

@@ -12,29 +12,32 @@ import java.util.concurrent.ConcurrentHashMap
 object ClassCacheableContext {
   val cache = new ConcurrentHashMap[Class[_], Map[String, Method]]
 }
-trait ClassCacheableContextFactory extends ContextFactory {
+trait ClassCacheableContextFactory extends ContextFactory { factory =>
   def createUndefined[T]: Context[T] = {
-    new Context[T] with ClassCacheableContext[T] with ClassCacheableContextFactory {
+    new Context[T] with ClassCacheableContext[T] {
       override val isRoot = false
       override val isUndefined = true
+      val contextFactory = factory
       val model: T = null.asInstanceOf[T]
       val parent: Context[T] = null.asInstanceOf[Context[T]]
     }
   }
 
   def createRoot[T](_model: T): Context[T] = {
-    new Context[T] with ClassCacheableContext[T] with ClassCacheableContextFactory {
+    new Context[T] with ClassCacheableContext[T] {
       val model: T = _model
       val isUndefined: Boolean = false
+      val contextFactory = factory
       val isRoot: Boolean = true
       val parent: Context[T] = createUndefined
     }
   }
 
   def createChild[T](_model: T, _parent: Context[T]): Context[T] = {
-    new Context[T] with ClassCacheableContext[T] with ClassCacheableContextFactory {
+    new Context[T] with ClassCacheableContext[T] {
       val model: T = _model
       val isUndefined: Boolean = false
+      val contextFactory = factory
       val isRoot: Boolean = false
       val parent: Context[T] = _parent
     }

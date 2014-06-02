@@ -8,29 +8,32 @@ import com.gilt.handlebars.parser.{IdentifierNode, Identifier}
  * User: chicks
  * Date: 5/30/13
  */
-trait DefaultContextFactory extends ContextFactory {
+trait DefaultContextFactory extends ContextFactory { factory =>
   def createUndefined[T]: Context[T] = {
-    new Context[T] with DefaultContextFactory {
+    new Context[T] {
       override val isRoot = false
       override val isUndefined = true
+      val contextFactory = factory
       val model: T = null.asInstanceOf[T]
       val parent: Context[T] = null.asInstanceOf[Context[T]]
     }
   }
 
   def createRoot[T](_model: T): Context[T] = {
-    new Context[T] with DefaultContextFactory{
+    new Context[T] {
       val model: T = _model
       val isUndefined: Boolean = false
+      val contextFactory = factory
       val isRoot: Boolean = true
       val parent: Context[T] = createUndefined
     }
   }
 
   def createChild[T](_model: T, _parent: Context[T]): Context[T] = {
-    new Context[T] with DefaultContextFactory {
+    new Context[T] {
       val model: T = _model
       val isUndefined: Boolean = false
+      val contextFactory = factory
       val isRoot: Boolean = false
       val parent: Context[T] = _parent
     }
@@ -49,11 +52,12 @@ object ThisIdentifier {
   }
 }
 
-trait Context[+T] extends ContextFactory with Loggable {
+trait Context[+T] extends Loggable {
   val isRoot: Boolean
   val isUndefined: Boolean
-  val model: Any
+  val model: Any // TODO - make protected
   val parent: Context[T]
+  val contextFactory: ContextFactory
 
   def asOption: Option[Context[T]] = if (isUndefined || model == null) None else Some(this)
   def notEmpty[A](fallback: Context[A]): Context[A] = if (isUndefined) fallback else this.asInstanceOf[Context[A]]
@@ -117,7 +121,7 @@ trait Context[+T] extends ContextFactory with Loggable {
       case ThisIdentifier(p) => if (path.tail.isEmpty) this else lookup(path.tail, args)
       case _ =>
         model match {
-          case Some(m) => createChild(m, parent).lookup(path, args)
+          case Some(m) => contextFactory.createChild(m, parent).lookup(path, args)
           case map:Map[_, _] =>
             invoke(path.head, args).asOption.map {
               ctx => if (path.tail.isEmpty) ctx else ctx.lookup(path.tail, args)
@@ -135,14 +139,14 @@ trait Context[+T] extends ContextFactory with Loggable {
       .get(methodName + args.length)
       .flatMap(invoke(_, args)).map {
         value =>
-          createChild(value, this)
+          contextFactory.createChild(value, this)
       }.orElse {
         model match {
           case map:Map[_, _] =>
-            map.asInstanceOf[Map[String, _]].get(methodName).map( v => createChild(v, this))
+            map.asInstanceOf[Map[String, _]].get(methodName).map( v => contextFactory.createChild(v, this))
           case _ => None
         }
-      }.getOrElse(createUndefined)
+      }.getOrElse(contextFactory.createUndefined)
   }
 
 

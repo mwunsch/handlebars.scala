@@ -1,7 +1,7 @@
 package com.gilt.handlebars.helper
 
 import com.gilt.handlebars.parser._
-import com.gilt.handlebars.context.{ClassCacheableContextFactory, Context}
+import com.gilt.handlebars.context.{ContextFactory, Context}
 import com.gilt.handlebars.Handlebars
 import com.gilt.handlebars.logging.Loggable
 import com.gilt.handlebars.parser.Program
@@ -67,7 +67,7 @@ class HelperOptionsBuilder(context: Context[Any],
                            helpers: Map[String, Helper],
                            data: Map[String, Any],
                            program: Node,
-                           params: List[ValueNode])(implicit contextFactory: ClassCacheableContextFactory) extends Loggable {
+                           params: List[ValueNode])(implicit contextFactory: ContextFactory) extends Loggable {
 
   private val args = params.map {
     case i:IdentifierNode =>
@@ -92,7 +92,7 @@ class HelperOptionsBuilder(context: Context[Any],
   def build: HelperOptions = new HelperOptionsImpl(args, data)
 
   private class HelperOptionsImpl(args: List[Any],
-                                  dataMap: Map[String, Any]) extends HelperOptions with ClassCacheableContextFactory {
+                                  dataMap: Map[String, Any]) extends HelperOptions {
 
     def argument(index: Int): Option[Any] = {
       args.lift(index)
@@ -100,7 +100,7 @@ class HelperOptionsBuilder(context: Context[Any],
 
     def data(key: String): String = {
       dataMap.get(key).map {
-        case d:DataNode => createRoot(dataMap).lookup(d).asOption.map(_.model.toString).getOrElse("")
+        case d:DataNode => contextFactory.createRoot(dataMap).lookup(d).asOption.map(_.model.toString).getOrElse("")
         case nonNodeValue => nonNodeValue.toString
       }.getOrElse("")
     }
@@ -136,7 +136,7 @@ class HelperOptionsBuilder(context: Context[Any],
 
     private def getContext(model: Any) = model match {
       case c:Context[_] => c
-      case anyObj => createChild(anyObj, context)
+      case anyObj => contextFactory.createChild(anyObj, context)
     }
   }
 }
