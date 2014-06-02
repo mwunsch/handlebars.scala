@@ -1,6 +1,6 @@
 package com.gilt.handlebars.visitor
 
-import com.gilt.handlebars.context.{ClassCacheableContextFactory, ContextFactory, Context}
+import com.gilt.handlebars.context.{ContextFactory, Context}
 import com.gilt.handlebars.logging.Loggable
 import com.gilt.handlebars.parser._
 import com.gilt.handlebars.parser.Content
@@ -9,15 +9,14 @@ import com.gilt.handlebars.parser.Program
 import com.gilt.handlebars.helper.{HelperOptionsBuilder, Helper}
 import com.gilt.handlebars.Handlebars
 
-object DefaultFactory extends ClassCacheableContextFactory
 object DefaultVisitor {
-  def apply[T](base: T, partials: Map[String, Handlebars], helpers: Map[String, Helper], data: Map[String, Any]) = {
-    implicit val defaultFactory = DefaultFactory
-    new DefaultVisitor[T](DefaultFactory.createRoot(base), partials, helpers, data)
+  def apply(base: Any, partials: Map[String, Handlebars], helpers: Map[String, Helper], data: Map[String, Any]) = {
+    implicit val contextFactory = Context
+    new DefaultVisitor(contextFactory(base), partials, helpers, data)
   }
 }
 
-class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars], helpers: Map[String, Helper], data: Map[String, Any])(implicit val contextFactory: ContextFactory) extends Visitor with Loggable  {
+class DefaultVisitor(context: Context[Any], partials: Map[String, Handlebars], helpers: Map[String, Helper], data: Map[String, Any])(implicit val contextFactory: ContextFactory[Any]) extends Visitor with Loggable  {
   def visit(node: Node): String = {
     node match {
       case c:Content => visit(c)
@@ -102,7 +101,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars], 
 
     val partialContext = partial.context.map(context.lookup(_)).getOrElse(context)
     partials.get(partialName).map {
-      _(partialContext.model, data, partials, helpers) // TODO - partial rendering should receive a context; never interact with model directly.
+      _(partialContext.binding.toOption getOrElse null, data, partials, helpers) // TODO - partial rendering should receive a context
     }.getOrElse {
       warn("Could not find partial: %s".format(partialName))
       ""
@@ -126,7 +125,6 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars], 
     }
   }
 
-  // TODO - move to context
   protected def renderBlock(ctx: Context[Any], program: Program, inverse: Option[Program]): String = {
     if (ctx.truthValue) {
       ctx.map { (itemContext, idx) =>
@@ -139,6 +137,6 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars], 
 
   protected def callHelper(helper: Helper, program: Node, params: List[ValueNode]): String = {
     val optionsBuilder = new HelperOptionsBuilder(context, partials, helpers, data, program, params)
-    helper.apply(context.model, optionsBuilder.build)
+    helper.apply(context.binding.toOption.getOrElse(""), optionsBuilder.build)
   }
 }

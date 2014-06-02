@@ -1,11 +1,12 @@
 package com.gilt.handlebars.helper
 
 import com.gilt.handlebars.parser._
-import com.gilt.handlebars.context.{ContextFactory, Context}
+import com.gilt.handlebars.context.{ContextFactory, Context, Binding}
 import com.gilt.handlebars.Handlebars
 import com.gilt.handlebars.logging.Loggable
 import com.gilt.handlebars.parser.Program
 import com.gilt.handlebars.visitor.DefaultVisitor
+import com.gilt.handlebars.context.DynamicBinding
 
 trait HelperOptions {
   /**
@@ -67,20 +68,21 @@ class HelperOptionsBuilder(context: Context[Any],
                            helpers: Map[String, Helper],
                            data: Map[String, Any],
                            program: Node,
-                           params: List[ValueNode])(implicit contextFactory: ContextFactory) extends Loggable {
+                           params: List[ValueNode])(implicit contextFactory: ContextFactory[Any]) extends Loggable {
 
   private val args = params.map {
     case i:IdentifierNode =>
       // 1. Look in the Context
-      context.lookup(i).asOption.map(_.model).orElse {
+      context.lookup(i).asOption.flatMap(_.binding.toOption).orElse {
         // 2. Check the global data, but treat it as a context in case the path is 'foo.bar'
-        contextFactory.createRoot(data).lookup(i).asOption.map(_.model)
+        contextFactory(data).lookup(i).asOption.flatMap(_.binding.toOption)
       }.getOrElse {
         // 3. Give up, path wasn't found anywhere
         warn("Path not found for helper: %s".format(i.string))
         ""
       }
-    case a => a.toString
+    case m: Binding[_] => m.toOption getOrElse ""
+    case a => a
   }
 
   private val inverseNode: Option[Node] = program match {
@@ -89,7 +91,9 @@ class HelperOptionsBuilder(context: Context[Any],
     case _ => None
   }
 
-  def build: HelperOptions = new HelperOptionsImpl(args, data)
+  def build: HelperOptions = {
+    new HelperOptionsImpl(args, data)
+  }
 
   private class HelperOptionsImpl(args: List[Any],
                                   dataMap: Map[String, Any]) extends HelperOptions {
@@ -100,15 +104,15 @@ class HelperOptionsBuilder(context: Context[Any],
 
     def data(key: String): String = {
       dataMap.get(key).map {
-        case d:DataNode => contextFactory.createRoot(dataMap).lookup(d).asOption.map(_.model.toString).getOrElse("")
+        case d:DataNode => contextFactory(dataMap).lookup(d).asOption.map(_.binding.renderString).getOrElse("")
         case nonNodeValue => nonNodeValue.toString
       }.getOrElse("")
     }
 
-    def visit(model: Any): String = visit(model, Map.empty[String, Any])
+    def visit(data: Any): String = visit(data, Map.empty[String, Any])
 
-    def visit(model: Any, extraData: Map[String, Any]): String = {
-      val visitorContext = getContext(model)
+    def visit(data: Any, extraData: Map[String, Any]): String = {
+      val visitorContext = childContext(data)
       new DefaultVisitor(visitorContext, partials, helpers, dataMap ++ extraData).visit(program)
     }
 
@@ -117,7 +121,7 @@ class HelperOptionsBuilder(context: Context[Any],
     def inverse(model: Any, extraData: Map[String, Any]): String = {
       inverseNode.map {
         node =>
-          val visitorContext = getContext(model)
+          val visitorContext = childContext(model)
           new DefaultVisitor(visitorContext, partials, helpers, dataMap ++ extraData).visit(node)
       }.getOrElse {
         warn("No inverse node found for program: %s".format(program))
@@ -127,16 +131,14 @@ class HelperOptionsBuilder(context: Context[Any],
 
     def lookup(path: String): Option[Any] = {
       HandlebarsGrammar.path(path).map { identifier =>
-        context.lookup(identifier, List.empty).asOption.map(_.model)
+        context.lookup(identifier, List.empty).asOption.flatMap(_.binding.toOption)
       }.getOrElse {
         warn("Could not parse path, %s, returning empty string".format(path))
         None
       }
     }
 
-    private def getContext(model: Any) = model match {
-      case c:Context[_] => c
-      case anyObj => contextFactory.createChild(anyObj, context)
-    }
+    private def childContext(data: Any) =
+      context.childContext(DynamicBinding(data))
   }
 }

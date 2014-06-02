@@ -49,8 +49,6 @@ publishTo <<= version { (v: String) =>
 
 publishArtifact in Test := false
 
-testOptions in Test += Tests.Argument("-oD")
-
 pomIncludeRepository := { _ => false }
 
 licenses := Seq("BSD-style" -> url("http://www.opensource.org/licenses/bsd-license.php"))

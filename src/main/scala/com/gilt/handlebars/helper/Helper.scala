@@ -1,7 +1,5 @@
 package com.gilt.handlebars.helper
 
-import com.gilt.handlebars.context.ClassCacheableContextFactory
-
 /**
  * The Scandlebars definition of a handlebars helper.
  *
@@ -40,7 +38,7 @@ trait Helper {
   def apply(model: Any, options: HelperOptions): String
 }
 
-object Helper extends ClassCacheableContextFactory {
+object Helper {
   def apply(f: ((Any, HelperOptions) => String)): Helper = {
     new Helper {
       def apply(model: Any, options: HelperOptions): String = f(model, options)

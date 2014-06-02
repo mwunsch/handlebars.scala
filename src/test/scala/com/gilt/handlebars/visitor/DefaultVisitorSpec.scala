@@ -195,8 +195,9 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
     it("this keyword nested inside helpers param") {
       val helpers = Map (
         "foo" -> Helper {
-          (context, options) =>
+          (context, options) => {
             "bar %s".format(options.argument(0).getOrElse(""))
+          }
         }
       )
       val template = "{{#hellos}}{{foo text/this/foo}}{{/hellos}}"
@@ -420,8 +421,9 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
       val template = "{{#form yehuda}}<p>{{name}}</p>{{/form}}"
       val helpers = Map(
         "form" -> Helper {
-          (context, options) =>
+          (context, options) => {
             "<form>%s</form>".format(options.visit(options.argument(0).get))
+          }
         }
       )
       val ctx = Yehuda(Person("Yehuda"))
