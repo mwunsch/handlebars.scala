@@ -3,6 +3,7 @@ package com.gilt.handlebars.visitor
 import org.scalatest.{ FunSpec, Matchers }
 import com.gilt.handlebars.Handlebars
 import com.gilt.handlebars.helper.Helper
+import com.gilt.handlebars.DynamicBinding._
 
 /**
  * User: chicks
@@ -15,7 +16,7 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       case class Ctx(person: Person)
       val template = "{{#with person}}{{first}} {{last}}{{/with}}"
       val ctx = Ctx(Person("Alan", "Johnson"))
-      Handlebars(template)(ctx) should equal("Alan Johnson")
+      Handlebars(template).apply(ctx) should equal("Alan Johnson")
     }
 
     it("with with function argument") {
@@ -27,7 +28,7 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       val ctx = new Ctx {
         def person: Person = Person("Alan", "Johnson")
       }
-      Handlebars(template)(ctx) should equal("Alan Johnson")
+      Handlebars(template).apply(ctx) should equal("Alan Johnson")
     }
 
     it("if") {
@@ -59,7 +60,7 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       case class Ctx(goodbyes: Map[Any, Text], world: String)
       val template = "{{#each goodbyes}}{{@key}}. {{text}}! {{/each}}cruel {{world}}!"
       val ctx = Ctx(Map("<b>#1</b>" -> Text("goodbye"), 2 -> Text("GOODBYE")), "world")
-      Handlebars(template)(ctx) should equal("&lt;b&gt;#1&lt;/b&gt;. goodbye! 2. GOODBYE! cruel world!")
+      Handlebars(template).apply(ctx) should equal("&lt;b&gt;#1&lt;/b&gt;. goodbye! 2. GOODBYE! cruel world!")
     }
 
     it("each with @index") {
@@ -67,16 +68,16 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       case class Ctx(goodbyes: Iterable[Text], world: String)
       val template = "{{#each goodbyes}}{{@index}}. {{text}}! {{/each}}cruel {{world}}!"
       val ctx = Ctx(Iterable(Text("goodbye"), Text("Goodbye"), Text("GOODBYE")), "world")
-      Handlebars(template)(ctx) should equal("0. goodbye! 1. Goodbye! 2. GOODBYE! cruel world!")
+      Handlebars(template).apply(ctx) should equal("0. goodbye! 1. Goodbye! 2. GOODBYE! cruel world!")
     }
 
     it("data passed to helpers") {
       case class Ctx(letters: List[String])
       val template = "{{#each letters}}{{this}}{{detectDataInsideEach}}{{/each}}"
       val ctx = Ctx(List("a", "b", "c"))
-      val detectDataHelper = Helper {
+      val detectDataHelper = Helper[Any] {
         (context, options) =>
-          options.data("exclaim")
+          options.data("exclaim").renderString
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("detectDataInsideEach" -> detectDataHelper))
 
@@ -88,16 +89,16 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       val template = "{{log blah}}"
       // Result should be "" as log doesn't print anything inside the template, but uses the slf4j logging from
       // Loggable.scala. There should be an 'INFO - whee' in the test output
-      Handlebars(template)(Ctx("whee")) should equal("")
+      Handlebars(template).apply(Ctx("whee")) should equal("")
     }
 
     it("passing in data to a compiled function that expects data - works with helpers") {
       case class Ctx(noun: String)
       val template = "{{hello}}"
-      val helloHelper = Helper {
+      val helloHelper = Helper[Any] {
         (context, options) =>
           val noun = options.lookup("noun").get
-          "%s %s".format(options.data("adjective"), noun)
+          "%s %s".format(options.data("adjective").get, noun)
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("hello" -> helloHelper))
       builder.build(Ctx("cat"), Map("adjective" -> "happy")) should equal("happy cat")
@@ -105,13 +106,13 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
 
     it("data can be looked up via @foo") {
       val template = "{{@hello}}"
-      Handlebars(template)(new {}, Map("hello" -> "hello")) should equal("hello")
+      Handlebars(template).apply(Map.empty, Map("hello" -> "hello")) should equal("hello")
     }
 
     it("deep @foo triggers automatic top-level data") {
       case class Ctx(foo: Boolean)
       val template = "{{#let world=\"world\"}}{{#if foo}}{{#if foo}}Hello {{@world}}{{/if}}{{/if}}{{/let}}"
-      val letHelper = Helper {
+      val letHelper = Helper[Any] {
         (context, options) =>
           options.visit(context, Map.empty)
       }
@@ -121,9 +122,8 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
 
     it("parameter data can be looked up via @foo") {
       val template = "{{hello @world}}"
-      val helloHelper = Helper {
-        (context, options) =>
-          "Hello %s".format(options.argument(0).get)
+      val helloHelper = Helper[Any] { (context, options) =>
+        "Hello %s".format(options.argument(0).get)
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("hello" -> helloHelper))
       builder.build(new {}, Map("world" -> "world")) should equal("Hello world")
@@ -131,9 +131,10 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
 
     it("hash values can be looked up via @foo") {
       val template = "{{hello noun=@world}}"
-      val helloHelper = Helper {
-        (context, options) =>
-          "Hello %s".format(options.data("noun"))
+      val helloHelper = Helper[Any] {
+        (context, options) => {
+          "Hello %s".format(options.data("noun").get)
+        }
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("hello" -> helloHelper))
       builder.build(new {}, Map("world" -> "world")) should equal("Hello world")
@@ -142,7 +143,7 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
     it("nested parameter data can be looked up via @foo.bar") {
       case class Bar(bar: String)
       val template = "{{hello @world.bar}}"
-      val helloHelper = Helper {
+      val helloHelper = Helper[Any] {
         (context, options) =>
           "Hello %s".format(options.argument(0).get)
       }
@@ -153,13 +154,13 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
     it("nested parameter data does not fail with @world.bar") {
       case class Bar(bar: String)
       val template = "{{hello @world.bar}}"
-      val helloHelper = Helper {
+      val helloHelper = Helper[Any] {
         (context, options) =>
-          "Hello %s".format(options.argument(0).get)
+          "Hello %s".format(options.argument(0).renderString)
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("hello" -> helloHelper))
       // The JS version expects "Hello undefined" which is not a thing in scala. scandlebars will use "" instead
-      builder.build(new {}, Map("foo" -> Bar("world"))) should equal("Hello ")
+      builder.build(Map.empty, Map("foo" -> Bar("world"))) should equal("Hello ")
     }
 
     it("parameter data throws when using this scope references") {
@@ -187,7 +188,7 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       case class Baz(baz: String)
       case class Ctx(bar: Baz)
       val template = "{{#let foo=bar.baz}}{{@foo}}{{/let}}"
-      val letHelper = Helper {
+      val letHelper = Helper[Any] {
         (context, options) =>
           options.visit(context)
       }
@@ -204,10 +205,10 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
     it("passing in data to a compiled function that expects data - works with helpers and parameters") {
       case class Ctx(exclaim: Boolean, world: String)
       val template = "{{hello world}}"
-      val helloHelper = Helper {
+      val helloHelper = Helper[Any] {
         (context, options) =>
           val exclaim = options.lookup("exclaim").get.asInstanceOf[Boolean]
-          "%s %s%s".format(options.data("adjective"), options.argument(0).get, if (exclaim) "!" else "")
+          "%s %s%s".format(options.data("adjective").get, options.argument(0).get, if (exclaim) "!" else "")
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("hello" -> helloHelper))
       builder.build(Ctx(true, "world"), Map("adjective" -> "happy")) should equal("happy world!")
@@ -217,14 +218,14 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       case class Ctx(exclaim: Boolean)
       val template = "{{#hello}}{{world}}{{/hello}}"
       val helpers = Map (
-        "hello" -> Helper {
+        "hello" -> Helper[Any] {
           (context, options) =>
             options.visit(context)
         },
-        "world" -> Helper {
+        "world" -> Helper[Any] {
           (context, options) =>
             val exclaim = options.lookup("exclaim").get.asInstanceOf[Boolean]
-            "%s world%s".format(options.data("adjective"), if (exclaim) "!" else "")
+            "%s world%s".format(options.data("adjective").get, if (exclaim) "!" else "")
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -236,14 +237,14 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       case class Exclaim(exclaim: String)
       val template = "{{#hello}}{{world ../zomg}}{{/hello}}"
       val helpers = Map (
-        "hello" -> Helper {
+        "hello" -> Helper[Any] {
           (context, options) =>
             options.visit(Exclaim("?"))
         },
-        "world" -> Helper {
+        "world" -> Helper[Any] {
           (context, options) =>
-            val exclaim = options.lookup("exclaim").getOrElse("")
-            "%s %s%s".format(options.data("adjective"), options.argument(0).get, exclaim)
+            val exclaim = options.lookup("exclaim").renderString
+            "%s %s%s".format(options.data("adjective").get, options.argument(0).get, exclaim)
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -255,14 +256,14 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       case class Exclaim(exclaim: String)
       val template = "{{#hello}}{{world ../zomg}}{{/hello}}"
       val helpers = Map (
-        "hello" -> Helper {
+        "hello" -> Helper[Any] {
           (context, options) =>
-            "%s %s".format(options.data("accessData"), options.visit(Exclaim("?")))
+            "%s %s".format(options.data("accessData").get, options.visit(Exclaim("?")))
         },
-        "world" -> Helper {
+        "world" -> Helper[Any] {
           (context, options) =>
-            val exclaim = options.lookup("exclaim").getOrElse("")
-            "%s %s%s".format(options.data("adjective"), options.argument(0).get, exclaim)
+            val exclaim = options.lookup("exclaim").renderString
+            "%s %s%s".format(options.data("adjective").get, options.argument(0).get, exclaim)
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -274,14 +275,14 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       case class Ctx2(exclaim: Boolean, zomg: String)
       val template = "{{#hello}}{{world zomg}}{{/hello}}"
       val helpers = Map (
-        "hello" -> Helper {
+        "hello" -> Helper[Any] {
           (context, options) =>
             options.visit(Ctx1("?", "world"), Map("adjective" -> "sad"))
         },
-        "world" -> Helper {
+        "world" -> Helper[Any] {
           (context, options) =>
-            val exclaim = options.lookup("exclaim").getOrElse("")
-            "%s %s%s".format(options.data("adjective"), options.argument(0).get, exclaim)
+            val exclaim = options.lookup("exclaim").renderString
+            "%s %s%s".format(options.data("adjective").get, options.argument(0).get, exclaim)
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -293,14 +294,14 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       case class Ctx(exclaim: Boolean, zomg: String)
       val template = "{{#hello}}{{world ../zomg}}{{/hello}}"
       val helpers = Map (
-        "hello" -> Helper {
+        "hello" -> Helper[Any] {
           (context, options) =>
             options.visit(Exclaim("?"), Map("adjective" -> "sad"))
         },
-        "world" -> Helper {
+        "world" -> Helper[Any] {
           (context, options) =>
-            val exclaim = options.lookup("exclaim").getOrElse("")
-            "%s %s%s".format(options.data("adjective"), options.argument(0).get, exclaim)
+            val exclaim = options.lookup("exclaim").renderString
+            "%s %s%s".format(options.data("adjective").get, options.argument(0).get, exclaim)
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -311,14 +312,14 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       case class Ctx(goodbye: String, world: String)
       val template = "{{goodbye}} {{cruel world}}"
       val helpers = Map (
-        "goodbye" -> Helper {
+        "goodbye" -> Helper[Any] {
           (context, options) =>
-            val goodbye = options.lookup("goodbye").getOrElse("")
+            val goodbye = options.lookup("goodbye").renderString
             goodbye.toString.toUpperCase
         },
-        "cruel" -> Helper {
+        "cruel" -> Helper[Any] {
           (context, options) =>
-            val world = options.lookup("world").getOrElse("")
+            val world = options.lookup("world").renderString
             "cruel %s".format(world.toString.toUpperCase)
         }
       )
@@ -330,14 +331,14 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       case class Ctx(goodbye: String, world: String)
       val template = "{{#goodbye}} {{cruel world}}{{/goodbye}}"
       val helpers = Map (
-        "goodbye" -> Helper {
+        "goodbye" -> Helper[Any] {
           (context, options) =>
-            val goodbye = options.lookup("goodbye").getOrElse("")
+            val goodbye = options.lookup("goodbye").renderString
             "%s%s".format(goodbye.toString.toUpperCase, options.visit(context))
         },
-        "cruel" -> Helper {
+        "cruel" -> Helper[Any] {
           (context, options) =>
-            val world = options.lookup("world").getOrElse("")
+            val world = options.lookup("world").renderString
             "cruel %s".format(world.toString.toUpperCase)
         }
       )
@@ -349,12 +350,12 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       case class Ctx(goodbye: String, world: String)
       val template = "{{this.goodbye}} {{cruel world}} {{cruel this.goodbye}}"
       val helpers = Map (
-        "goodbye" -> Helper {
+        "goodbye" -> Helper[Any] {
           (context, options) =>
-            val goodbye = options.lookup("goodbye").getOrElse("")
+            val goodbye = options.lookup("goodbye").renderString
             goodbye.toString.toUpperCase
         },
-        "cruel" -> Helper {
+        "cruel" -> Helper[Any] {
           (context, options) =>
             "cruel %s".format(options.argument(0).get.toString.toUpperCase)
         }
@@ -367,12 +368,12 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       case class Ctx(goodbye: String, world: String)
       val template = "{{#goodbye}} {{cruel world}}{{/goodbye}} {{this.goodbye}}"
       val helpers = Map (
-        "goodbye" -> Helper {
+        "goodbye" -> Helper[Any] {
           (context, options) =>
-            val goodbye = options.lookup("goodbye").getOrElse("")
+            val goodbye = options.lookup("goodbye").renderString
             "%s%s".format(goodbye.toString.toUpperCase, options.visit(context))
         },
-        "cruel" -> Helper {
+        "cruel" -> Helper[Any] {
           (context, options) =>
             "cruel %s".format(options.argument(0).get.toString.toUpperCase)
         }
@@ -384,9 +385,9 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
     it("helpers can take an optional hash") {
       val template = "{{goodbye cruel=\"CRUEL\" world=\"WORLD\" times=12}}"
       val helpers = Map (
-        "goodbye" -> Helper {
+        "goodbye" -> Helper[Any] {
           (context, options) =>
-            "GOODBYE %s %s %s TIMES".format(options.data("cruel"), options.data("world"), options.data("times"))
+            "GOODBYE %s %s %s TIMES".format(options.data("cruel").get, options.data("world").get, options.data("times").get)
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -395,11 +396,11 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
 
     it("helpers can take an optional hash with booleans") {
       val helpers = Map (
-        "goodbye" -> Helper {
+        "goodbye" -> Helper[Any] {
           (context, options) =>
-            val print = options.data("print").toBoolean
-            if (print) {
-              "GOODBYE %s %s".format(options.data("cruel"), options.data("world"))
+            val print = options.data("print")
+            if (print.isTruthy) {
+              "GOODBYE %s %s".format(options.data("cruel").get, options.data("world").get)
             } else {
               "NOT PRINTING"
             }
@@ -417,9 +418,9 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
     it("block helpers can take an optional hash") {
       val template = "{{#goodbye cruel=\"CRUEL\" times=12}}world{{/goodbye}}"
       val helpers = Map (
-        "goodbye" -> Helper {
+        "goodbye" -> Helper[Any] {
           (context, options) =>
-            "GOODBYE %s %s %s TIMES".format(options.data("cruel"), options.visit(context), options.data("times"))
+            "GOODBYE %s %s %s TIMES".format(options.data("cruel").get, options.visit(context), options.data("times").get)
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -430,9 +431,9 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       // handlebars.scala does not support single quote strings for hashes
       val template = "{{#goodbye cruel='CRUEL' times=12}}world{{/goodbye}}"
       val helpers = Map (
-        "goodbye" -> Helper {
+        "goodbye" -> Helper[Any] {
           (context, options) =>
-            "GOODBYE %s %s %s TIMES".format(options.data("cruel"), options.visit(context), options.data("times"))
+            "GOODBYE %s %s %s TIMES".format(options.data("cruel").renderString, options.visit(context), options.data("times"))
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
@@ -441,11 +442,10 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
 
     it("block helpers can take an optional hash with booleans") {
       val helpers = Map (
-        "goodbye" -> Helper {
+        "goodbye" -> Helper[Any] {
           (context, options) =>
-            val print = options.data("print").toBoolean
-            if (print) {
-              "GOODBYE %s %s".format(options.data("cruel"), options.visit(context))
+            if (options.data("print").isTruthy) {
+              "GOODBYE %s %s".format(options.data("cruel").get, options.visit(context))
             } else {
               "NOT PRINTING"
             }
@@ -464,7 +464,7 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       // handlebars.scala does not support string parameter mode
       val template = "{{wycats is.a slave.driver}}"
       val helpers = Map (
-        "wycats" -> Helper {
+        "wycats" -> Helper[Any] {
           (context, options) =>
             "HELP ME MY BOSS %s %s".format(options.argument(0).get, options.argument(1).get)
         }

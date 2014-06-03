@@ -1,89 +1,77 @@
 package com.gilt.handlebars.helper
 
 import com.gilt.handlebars.parser._
-import com.gilt.handlebars.context.{ContextFactory, Context, Binding}
+import com.gilt.handlebars.context.{BindingFactory, Context, Binding, VoidBinding, FullBinding}
 import com.gilt.handlebars.Handlebars
 import com.gilt.handlebars.logging.Loggable
 import com.gilt.handlebars.parser.Program
 import com.gilt.handlebars.visitor.DefaultVisitor
 import com.gilt.handlebars.context.DynamicBinding
+import com.gilt.handlebars.context.VoidBinding
 
-trait HelperOptions {
+trait HelperOptions[T] {
   /**
    * Retrieve an argument from the list provided to the helper by its index.
    * @param index the index of the argument
    * @return Option of the argument value, if it exists.
    */
-  def argument(index: Int): Option[Any]
+  def argument(index: Int): Binding[T]
 
   /**
    * Retrieve data provided to the Handlebars template by its key.
    * @param key the key in the map of data provided to Handlebars.apply
    * @return String value of the data retrieved
    */
-  def data(key: String): String
+  def data(key: String): Binding[T]
 
   /**
-   * Evaluates the body of the helper using the provided model as a context.
-   * @param model the context for the body of the helper
+   * Evaluates the body of the helper using the provided binding as a context.
+   * @param binding the context for the body of the helper
    * @return String result of evaluating the body.
    */
-  def visit(model: Any): String
+  def visit(binding: Binding[T]): String
 
   /**
-   * Evaluates the body of the helper using the provided model as a context as well as additional data to be combined
+   * Evaluates the body of the helper using the provided binding as a context as well as additional data to be combined
    * with the data provided by Handlebars.apply
-   * @param model the context for the body of the helper
+   * @param binding the context for the body of the helper
    * @param extraData data provided by the helper to be used while evaluating the body of the helper.
    * @return String result of evaluating the body.
    */
-  def visit(model: Any, extraData: Map[String, Any]): String
+  def visit(binding: Binding[T], extraData: Map[String, Binding[T]]): String
 
   /**
-   * Evaluate the inverse of body of the helper using the provided model as a context.
-   * @param model the context for the inverse of the body of the helper
+   * Evaluate the inverse of body of the helper using the provided binding as a context.
+   * @param binding the context for the inverse of the body of the helper
    * @return String result of evaluating the body.
    */
-  def inverse(model: Any): String
+  def inverse(binding: Binding[T]): String
 
   /**
-   * Evaluates the inverse of the body of the helper using the provided model as a context as well as additional data to
+   * Evaluates the inverse of the body of the helper using the provided binding as a context as well as additional data to
    * be combined with the data provided by Handlebars.apply
-   * @param model the context for the inverse of the body of the helper
+   * @param binding the context for the inverse of the body of the helper
    * @param extraData data provided by the helper to be used while evaluating the inverse of the body of the helper.
    * @return String result of evaluating the inverse of the body.
    */
-  def inverse(model: Any, extraData: Map[String, Any]): String
+  def inverse(binding: Binding[T], extraData: Map[String, Binding[T]]): String
 
   /**
    * Look up a path in the the current context. The one in which the helper was called.
    * @param path The path to lookup in the context. e.g., ../name
-   * @return Some(model) where model is the object that resulted in the lookup. None otherwise.
+   * @return Some(binding) where binding is the object that resulted in the lookup. None otherwise.
    */
-  def lookup(path: String): Option[Any]
+  def lookup(path: String): Binding[T]
+
+  val dataMap: Map[String, Binding[T]]
 }
 
-class HelperOptionsBuilder(context: Context[Any],
-                           partials: Map[String, Handlebars],
-                           helpers: Map[String, Helper],
-                           data: Map[String, Any],
-                           program: Node,
-                           params: List[ValueNode])(implicit contextFactory: ContextFactory[Any]) extends Loggable {
-
-  private val args = params.map {
-    case i:IdentifierNode =>
-      // 1. Look in the Context
-      context.lookup(i).asOption.flatMap(_.binding.toOption).orElse {
-        // 2. Check the global data, but treat it as a context in case the path is 'foo.bar'
-        contextFactory(data).lookup(i).asOption.flatMap(_.binding.toOption)
-      }.getOrElse {
-        // 3. Give up, path wasn't found anywhere
-        warn("Path not found for helper: %s".format(i.string))
-        ""
-      }
-    case m: Binding[_] => m.toOption getOrElse ""
-    case a => a
-  }
+class HelperOptionsBuilder[T](context: Context[T],
+                              partials: Map[String, Handlebars[T]],
+                              helpers: Map[String, Helper[T]],
+                              data: Map[String, Binding[T]],
+                              program: Node,
+                              args: List[Binding[T]])(implicit contextFactory: BindingFactory[T]) extends Loggable {
 
   private val inverseNode: Option[Node] = program match {
     case p:Program => p.inverse
@@ -91,37 +79,33 @@ class HelperOptionsBuilder(context: Context[Any],
     case _ => None
   }
 
-  def build: HelperOptions = {
+  def build: HelperOptions[T] =
     new HelperOptionsImpl(args, data)
-  }
 
-  private class HelperOptionsImpl(args: List[Any],
-                                  dataMap: Map[String, Any]) extends HelperOptions {
+  private class HelperOptionsImpl(args: List[Binding[T]],
+                                  val dataMap: Map[String, Binding[T]]) extends HelperOptions[T] {
 
-    def argument(index: Int): Option[Any] = {
-      args.lift(index)
+    def argument(index: Int): Binding[T] = {
+      args.lift(index) getOrElse VoidBinding[T]
     }
 
-    def data(key: String): String = {
-      dataMap.get(key).map {
-        case d:DataNode => contextFactory(dataMap).lookup(d).asOption.map(_.binding.renderString).getOrElse("")
-        case nonNodeValue => nonNodeValue.toString
-      }.getOrElse("")
+    def data(key: String): Binding[T] = {
+      dataMap.get(key).getOrElse(VoidBinding[T])
     }
 
-    def visit(data: Any): String = visit(data, Map.empty[String, Any])
+    def visit(binding: Binding[T]): String = visit(binding, Map.empty[String, Binding[T]])
 
-    def visit(data: Any, extraData: Map[String, Any]): String = {
-      val visitorContext = childContext(data)
+    def visit(binding: Binding[T], extraData: Map[String, Binding[T]]): String = {
+      val visitorContext = context.childContext(binding)
       new DefaultVisitor(visitorContext, partials, helpers, dataMap ++ extraData).visit(program)
     }
 
-    def inverse(model: Any): String = inverse(model, Map.empty[String, Any])
+    def inverse(binding: Binding[T]): String = inverse(binding, Map.empty[String, Binding[T]])
 
-    def inverse(model: Any, extraData: Map[String, Any]): String = {
+    def inverse(binding: Binding[T], extraData: Map[String, Binding[T]]): String = {
       inverseNode.map {
         node =>
-          val visitorContext = childContext(model)
+          val visitorContext = context.childContext(binding)
           new DefaultVisitor(visitorContext, partials, helpers, dataMap ++ extraData).visit(node)
       }.getOrElse {
         warn("No inverse node found for program: %s".format(program))
@@ -129,16 +113,13 @@ class HelperOptionsBuilder(context: Context[Any],
       }
     }
 
-    def lookup(path: String): Option[Any] = {
+    def lookup(path: String): Binding[T] = {
       HandlebarsGrammar.path(path).map { identifier =>
-        context.lookup(identifier, List.empty).asOption.flatMap(_.binding.toOption)
+        context.lookup(identifier, List.empty).binding
       }.getOrElse {
-        warn("Could not parse path, %s, returning empty string".format(path))
-        None
+        warn("Could not parse path, %s, returning void binding".format(path))
+        VoidBinding[T]
       }
     }
-
-    private def childContext(data: Any) =
-      context.childContext(DynamicBinding(data))
   }
 }

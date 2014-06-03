@@ -1,5 +1,8 @@
 package com.gilt.handlebars.helper
 
+import com.gilt.handlebars.context.Binding
+import com.gilt.handlebars.context.BindingFactory
+
 /**
  * The Scandlebars definition of a handlebars helper.
  *
@@ -8,19 +11,19 @@ package com.gilt.handlebars.helper
  *
  * {{{
  *  val fullNameHelper = Helper {
- *    (model, options) =>
+ *    (binding, options) =>
  *      "%s %s".format(options.lookup("firstName"), options.lookup("lastName"))
  *  }
  * }}}
  *
- * It may be likely that you can predict the type of model in practice. You could attempt to cast the context model to
+ * It may be likely that you can predict the type of binding in practice. You could attempt to cast the context binding to
  * the type you expect. This runs the risk of throwing a ClassCastException while rendering the template, which may be
  * desirable. Use cautiously.
  *
  * {{{
  *  val fullNameHelper = Helper {
- *    (model, options) =>
- *      val person = model.asInstanceOf[Person]
+ *    (binding, options) =>
+ *      val person = binding.asInstanceOf[Person]
  *      "%s %s".format(person.firstName, person.lastName)
  *  }
  * }}}
@@ -28,33 +31,33 @@ package com.gilt.handlebars.helper
  * See [[com.gilt.handlebars.helper.HelperOptions]] for all of the options available.
  *
  */
-trait Helper {
+trait Helper[T] {
   /**
    * Executes the helper
-   * @param model the context object for the helper
+   * @param binding the context object for the helper
    * @param options the options or utility methods for the helper.
    * @return String result after evaluating the helper
    */
-  def apply(model: Any, options: HelperOptions): String
+  def apply(binding: Binding[T], options: HelperOptions[T])(implicit contextFactory: BindingFactory[T]): String
 }
 
 object Helper {
-  def apply(f: ((Any, HelperOptions) => String)): Helper = {
-    new Helper {
-      def apply(model: Any, options: HelperOptions): String = f(model, options)
+  def apply[T](f: ((Binding[T], HelperOptions[T]) => String)): Helper[T] = {
+    new Helper[T] {
+      def apply(binding: Binding[T], options: HelperOptions[T])(implicit contextFactory: BindingFactory[T]): String = f(binding, options)
     }
   }
 
-  lazy val defaultHelpers: Map[String, Helper] = Map (
-    "with" -> new WithHelper,
-    "if" -> new IfHelper,
-    "each" -> new EachHelper,
-    "log" -> new LogHelper
+  def defaultHelpers[T]: Map[String, Helper[T]] = Map (
+    "with" -> new WithHelper[T],
+    "if" -> new IfHelper[T],
+    "each" -> new EachHelper[T],
+    "log" -> new LogHelper[T]
   )
 }
 
-class StaticHelper(staticValue: Any) extends Helper {
-  def apply(model: Any, options: HelperOptions): String = {
+class StaticHelper[T](staticValue: T) extends Helper[T] {
+  def apply(binding: Binding[T], options: HelperOptions[T])(implicit c: BindingFactory[T]): String = {
     staticValue.toString
   }
 }

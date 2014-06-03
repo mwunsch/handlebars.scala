@@ -4,13 +4,15 @@ import org.scalatest.{ FunSpec, Matchers }
 import com.gilt.handlebars.parser._
 import scala.io.Source
 import java.io.File
+import com.gilt.handlebars.DynamicBinding._
 
 /**
  * User: chicks
  * Date: 7/1/13
  * Time: 11:22 AM
  */
-class PartialHelperSpec extends FunSpec with Matchers with PartialHelper {
+class PartialHelperSpec extends FunSpec with Matchers {
+  import PartialHelper._
   describe("filterPartials") {
     it("filters partials out of a simple template") {
       val program = HandlebarsGrammar("{{> myPartial}}").get

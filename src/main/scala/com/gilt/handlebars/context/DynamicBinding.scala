@@ -4,12 +4,13 @@ import com.gilt.handlebars.logging.Loggable
 import java.lang.reflect.Method
 
 
-case class DynamicBinding(val data: Any) extends FullBinding[Any] with Loggable {
+class DynamicBinding(val data: Any) extends FullBinding[Any] with Loggable {
   override def toOption = if (data == null) None else Some(data)
   lazy val renderString = if (isTruthy) data.toString else ""
 
   lazy val isTruthy = data match {
-    case /* UndefinedValue |*/ None | false | Nil | null | "" => false
+    case /* UndefinedValue |*/ None | Unit | Nil | null | false | "" => false
+    case v: scala.runtime.BoxedUnit => false
     case _ => true
   }
   override def toString = s"DynamicBinding(${data})"
@@ -17,10 +18,10 @@ case class DynamicBinding(val data: Any) extends FullBinding[Any] with Loggable 
   lazy val isCollection = data.isInstanceOf[Iterable[_]] && ! isDictionary
   val isUndefined = false
   protected lazy val isValueless = data match {
-    case /* UndefinedValue |*/ None | null => true
+    case /* UndefinedValue |*/ None | Unit | null => true
     case _ => false
   }
-  def traverse(key: String, args: List[Any]): Binding[Any] =
+  def traverse(key: String, args: List[Binding[Any]] = List.empty): Binding[Any] =
     data match {
       case Some(m) => (new DynamicBinding(m)).traverse(key, args)
       case map:Map[_, _] =>
@@ -39,18 +40,24 @@ case class DynamicBinding(val data: Any) extends FullBinding[Any] with Loggable 
     else
       Seq(this)
 
-  protected def invoke(methodName: String, args: List[Any] = Nil): Binding[Any] = {
+  lazy val asDictionaryCollection =
+    if (isDictionary)
+      data.asInstanceOf[Map[Any, Any]].toSeq map { case (k, v) => (k.toString, DynamicBinding(v)) }
+    else
+      Seq()
+
+  protected def invoke(methodName: String, args: List[Binding[Any]] = Nil): Binding[Any] = {
     methods.
       get(methodName + args.length).
       map(invoke(_, args)).
       getOrElse(VoidBinding[Any])
   }
 
-  protected def invoke(method: Method, args: List[Any]): Binding[Any] = {
+  protected def invoke(method: Method, args: List[Binding[Any]]): Binding[Any] = {
     debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
 
     try
-      DynamicBinding(method.invoke(data, args.map(_.asInstanceOf[AnyRef]): _*))
+      new DynamicBinding(method.invoke(data, args.map(_.get.asInstanceOf[AnyRef]): _*))
     catch {
       case e: java.lang.IllegalArgumentException => VoidBinding
     }
@@ -66,12 +73,11 @@ case class DynamicBinding(val data: Any) extends FullBinding[Any] with Loggable 
 
 }
 
-object VoidContext extends Context[Any] {
-  val binding = VoidBinding[Any]
-  val parent = VoidContext
-  val isRoot = false
-  val isUndefined = true // SMELL: this attribute stinks
-  override def asOption = None
-  def apply[T] = this.asInstanceOf[Context[T]]
-  override def toString = "Void"
+object DynamicBinding extends BindingFactory[Any] {
+  def apply(_model: Any): Binding[Any] =
+    new DynamicBinding(_model)
+
+  def bindPrimitive(v: String) = apply(v)
+  def bindPrimitive(v: Boolean) = apply(v)
+  def bindPrimitive(model: Int) = apply(model)
 }

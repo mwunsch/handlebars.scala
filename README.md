@@ -26,7 +26,7 @@ And an arbitrary Scala object:
       val hometown = "Somewhere, TX"
       val kids = Seq(Map(
         "name" -> "Jimmy",
-        "age -> "12"
+        "age" -> "12"
       ), Map(
         "name" -> "Sally",
         "age" -> "4"
@@ -34,6 +34,12 @@ And an arbitrary Scala object:
     }
 
 Pass those into Handlebars like so:
+
+    scala> import com.gilt.handlebars.DynamicBinding._
+    import com.gilt.handlebars.DynamicBinding._
+
+    scala> import com.gilt.handlebars.Handlebars
+    import com.gilt.handlebars.Handlebars
 
     scala> val t = Handlebars(template)
     t: com.gilt.handlebars.Handlebars = com.gilt.handlebars.Handlebars@496d864e
@@ -58,15 +64,25 @@ The example above demonstrates the `apply` method of a `Handlebars` instance, wh
 The signature for apply looks like this:
 
     def apply[T](context: T,
-          data: Map[String, Any] = Map.empty,
-          partials: Map[String, Handlebars] = Map.empty,
-          helpers: Map[String, Helper] = Map.empty): String
+          data: Map[String, Binding[T]] = Map.empty,
+          partials: Map[String, Handlebars[T]] = Map.empty,
+          helpers: Map[String, Helper[T]] = Map.empty): String
+
+## Bindings
+
+In order to facilitate multiple ways of interacting with data, Handlebars provides a data-binding facility. Handlebars ships with a default binding strategy, DynamicBinding, which uses Scala reflection to work with scala standard-library data structures and primitives. You can implement your own Binding strategies by implementing the following:
+
+- com.gilt.handlebars.Context.FullBinding
+- com.gilt.handlebars.Context.BindingFactory
+
+Provide the implicit BindingFactory which uses your new binding. If you need an example, see the source code in `Context/DynamicBinding.scala`.
 
 ## Helpers
+
 The trait for a helper looks like this:
 
-    trait Helper {
-      def apply(model: Any, options: HelperOptions): String
+    trait Helper[Any] {
+      def apply(model: Binding[Any], options: HelperOptions[Any]): String
     }
 
 + `model` the model of the context the helper was called from.
@@ -74,27 +90,28 @@ The trait for a helper looks like this:
 
 You can define a new helper by extending the trait above, or you can use companion obejct apply method to define one on the fly:
 
-    val fullNameHelper = Helper {
+    val fullNameHelper = Helper[Any] {
       (model, options) =>
-        "%s %s".format(options.lookup("firstName"), options.lookup("lastName"))
+        "%s %s".format(options.lookup("firstName").renderString, options.lookup("lastName").renderString)
     }
 
 If you know that the information you need is on `model`, you can do the same thing by accessing first and last name on the model directly. However, you will be responsible for casting model to the correct type.
 
-    val fullNameHelper = Helper {
+    val fullNameHelper = Helper[Any] {
       (model, options) =>
-        val person = model.asInstanceOf[Person]
+        val person = model.get.asInstanceOf[Person]
         "%s %s".format(person.firstName, person.lastName)
     }
 
 ### HelperOptions
-The `HelperOption` object gives you the tools you need to get things done in your helper. The primary methods are:
 
-+ `def argument(index: Int): Option[Any]` Retrieve an argument from the list provided to the helper by its index.
+The `HelperOption[T]` object gives you the tools you need to get things done in your helper. The primary methods are:
+
++ `def argument(index: Int): Binding[T]` Retrieve an argument from the list provided to the helper by its index.
 + `def data(key: String): String` Retrieve data provided to the Handlebars template by its key.
-+ `def visit(model: Any): String` Evaluates the body of the helper using the provided model as a context.
-+ `def inverse(model: Any): String` Evaluate the inverse of body of the helper using the provided model as a context.
-+ `def lookup(path: String): Option[Any]` Look up a path in the the current context. The one in which the helper was called.
++ `def visit(binding: Binding[T]): String` Evaluates the body of the helper using the provided model as a context.
++ `def inverse(binding: Binding[T]): String` Evaluate the inverse of body of the helper using the provided model as a context.
++ `def lookup(path: String): Option[T]` Look up a value for a path in the the current context. The one in which the helper was called.
 
 ## Caveats
 

@@ -42,18 +42,9 @@ trait Context[T] extends Loggable {
 
   def notEmpty[A](fallback: Context[A]): Context[A] = if (isUndefined) fallback else this.asInstanceOf[Context[A]]
 
-  def lookup(path: IdentifierNode, args: List[Any] = List.empty): Context[T] = {
-    args match {
-      case identifiers: List[_] => {
-        val newArgs = identifiers.collect {
-          case n: IdentifierNode => lookup(n).binding.get
-        }
-        lookup(path.value, newArgs)
-      }
-      case _ =>
-        lookup(path.value, args)
-    }
-  }
+  def lookup(path: IdentifierNode, args: List[Binding[T]] = List.empty): Context[T] =
+    lookup(path.value, args)
+
 
   /* mimic "falsy" values of Handlebars.js, plus care about Options
    * @param a
@@ -79,7 +70,7 @@ trait Context[T] extends Loggable {
   // dictionaryFallbackFlag is work-around for a case in which a context is used to iterate a dictionary
   // It'd be preferable to not create a context for the dictionary (thus preventing the need to skip it), or
   // to capture signal somehow that the model is being used that way
-  def lookup(path: List[String], args: List[Any], dictionaryFallbackFlag: Boolean): Context[T] = {
+  def lookup(path: List[String], args: List[Binding[T]], dictionaryFallbackFlag: Boolean): Context[T] = {
     path match {
       case Nil => this
       case _ if isUndefined => this
@@ -96,8 +87,7 @@ trait Context[T] extends Loggable {
       }
     }
   }
-  def lookup(path: List[String], args: List[Any]): Context[T] = lookup(path, args, false)
-
+  def lookup(path: List[String], args: List[Binding[T]]): Context[T] = lookup(path, args, false)
 
   def childContext(model: Binding[T]): Context[T] =
     new ChildContext[T](model, this)
@@ -116,11 +106,17 @@ trait Context[T] extends Loggable {
   }
 }
 
-trait ContextFactory[T] {
-  def apply(model: T): Context[T]
+object Context {
+  def apply[T](binding: Binding[T]): Context[T] =
+    new RootContext(binding)
 }
 
-object Context extends ContextFactory[Any] {
-  def apply(_model: Any): Context[Any] =
-    new RootContext(DynamicBinding(_model))
+object VoidContext extends Context[Any] {
+  val binding = VoidBinding[Any]
+  val parent = VoidContext
+  val isRoot = false
+  val isUndefined = true // SMELL: this attribute stinks
+  override def asOption = None
+  def apply[T] = this.asInstanceOf[Context[T]]
+  override def toString = "Void"
 }

@@ -4,12 +4,13 @@ import com.gilt.handlebars.parser._
 import java.io.File
 import scala.io.Source
 import com.gilt.handlebars.{HandlebarsImpl, HandlebarsBuilder, DefaultHandlebarsBuilder, Handlebars}
+import com.gilt.handlebars.context.BindingFactory
 
 /**
  * @author chicks
  * @since 6/30/13
  */
-trait PartialHelper extends ProgramHelper {
+object PartialHelper extends ProgramHelper {
 
   /**
    * Filters a node and returns all of the Partial nodes contained within it. This method will filter as-is, so if a
@@ -60,13 +61,13 @@ trait PartialHelper extends ProgramHelper {
     }
   }
 
-  def getTemplates(file: File): Map[String, Handlebars] = {
+  def getTemplates[T](file: File)(implicit contextFactory: BindingFactory[T]): Map[String, Handlebars[T]] = {
     findAllPartials(file).map {
-      case(name, partialFile) => name -> new HandlebarsImpl(programFromFile(partialFile), Map.empty, Map.empty)
+      case(name, partialFile) => name -> new HandlebarsImpl[T](programFromFile(partialFile), Map.empty, Map.empty)
     }
   }
 
-  def normalizePartialNames(partials: Map[String, Handlebars]): Map[String, Handlebars] = {
+  def normalizePartialNames[T](partials: Map[String, Handlebars[T]]): Map[String, Handlebars[T]] = {
     partials.map {
       case (key, value) => key.replace("/", ".") -> value
     }

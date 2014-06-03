@@ -1,6 +1,7 @@
 package com.gilt.handlebars.visitor
 
-import com.gilt.handlebars.context.{ContextFactory, Context}
+import com.gilt.handlebars.context.VoidBinding
+import com.gilt.handlebars.context.{BindingFactory, Context}
 import com.gilt.handlebars.logging.Loggable
 import com.gilt.handlebars.parser._
 import com.gilt.handlebars.parser.Content
@@ -8,15 +9,15 @@ import com.gilt.handlebars.parser.Comment
 import com.gilt.handlebars.parser.Program
 import com.gilt.handlebars.helper.{HelperOptionsBuilder, Helper}
 import com.gilt.handlebars.Handlebars
+import com.gilt.handlebars.context.Binding
 
 object DefaultVisitor {
-  def apply(base: Any, partials: Map[String, Handlebars], helpers: Map[String, Helper], data: Map[String, Any]) = {
-    implicit val contextFactory = Context
-    new DefaultVisitor(contextFactory(base), partials, helpers, data)
+  def apply[T](base: Context[T], partials: Map[String, Handlebars[T]], helpers: Map[String, Helper[T]], data: Map[String, Binding[T]])(implicit bindingFactory: BindingFactory[T]) = {    
+    new DefaultVisitor(base, partials, helpers, data)
   }
 }
 
-class DefaultVisitor(context: Context[Any], partials: Map[String, Handlebars], helpers: Map[String, Helper], data: Map[String, Any])(implicit val contextFactory: ContextFactory[Any]) extends Visitor with Loggable  {
+class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]], helpers: Map[String, Helper[T]], data: Map[String, Binding[T]])(implicit val contextFactory: BindingFactory[T]) extends Visitor with Loggable  {
   def visit(node: Node): String = {
     node match {
       case c:Content => visit(c)
@@ -37,23 +38,20 @@ class DefaultVisitor(context: Context[Any], partials: Map[String, Handlebars], h
 
   def visit(mustache: Mustache): String = {
     // I. There is no hash present on this {{mustache}}
+
+    lazy val paramsList = valueNodesToBindings(mustache.params).toList
+    lazy val paramsMap = valueHashToBindingMap(mustache.hash)
+
     if(mustache.hash.value.isEmpty) {
       // 1. Check if path refers to a helper
       val value = helpers.get(mustache.path.string).map {
-        callHelper(_, mustache, mustache.params)
+        callHelper(_, mustache, paramsList)
       }.orElse {
         // 2. Check if path exists directly in the context
-        context.lookup(mustache.path, mustache.params).asOption.map(_.render)
+        context.lookup(mustache.path, paramsList).asOption.map(_.render)
       }.orElse {
         // 3. Check if path refers to provided data.
-        data.get(mustache.path.string).map {
-          // 3a. Check if path resolved to an IdentifierNode, probably the result of something that looks like
-          //     {{path foo=bar.baz}}. 'bar.baz' in this case was converted to an IdentifierNode
-          case i:IdentifierNode => context.lookup(i).render
-
-          // 3b. The data was something else, convert it to a string
-          case other => other.toString
-        }
+        data.get(mustache.path.string).map(_.renderString)
       }.getOrElse {
         // 4. Could not find path in context, helpers or data.
         warn("Could not find path or helper: %s, context: %s".format(mustache.path, context))
@@ -64,17 +62,20 @@ class DefaultVisitor(context: Context[Any], partials: Map[String, Handlebars], h
     } else {
       // II. There is a hash on this {{mustache}}. Start over with the hash information added to 'data'. All of the
       //     data in the hash will be accessible to any child nodes of this {{mustache}}.
-      new DefaultVisitor(context, partials, helpers, data ++ hashNode2DataMap(mustache.hash)).visit(mustache.copy(hash = HashNode(Map.empty)))
+      new DefaultVisitor(context, partials, helpers, data ++ paramsMap).visit(mustache.copy(hash = HashNode(Map.empty)))
     }
   }
 
   def visit(block: Block): String = {
+    lazy val paramsList = valueNodesToBindings(block.mustache.params).toList
+    lazy val paramsMap = valueHashToBindingMap(block.mustache.hash)
+
     // I. There is no hash present on this block
     if (block.mustache.hash.value.isEmpty) {
       val lookedUpCtx = context.lookup(block.mustache.path)
       // 1. Check if path refers to a helper
       helpers.get(block.mustache.path.string).map {
-        callHelper(_, block.program, block.mustache.params)
+        callHelper(_, block.program, paramsList)
       }.orElse {
         // 2. Check if path exists directly in the context
         lookedUpCtx.asOption.map {
@@ -89,7 +90,7 @@ class DefaultVisitor(context: Context[Any], partials: Map[String, Handlebars], h
       // II. There is a hash on this block. Start over with the hash information added to 'data'. All of the
       //     data in the hash will be accessible to any child nodes of this block.
       val blockWithoutHash = block.copy(mustache = block.mustache.copy(hash = HashNode(Map.empty)))
-      new DefaultVisitor(context, partials, helpers, data ++ hashNode2DataMap(block.mustache.hash)).visit(blockWithoutHash)
+      new DefaultVisitor(context, partials, helpers, data ++ paramsMap).visit(blockWithoutHash)
     }
   }
 
@@ -101,20 +102,31 @@ class DefaultVisitor(context: Context[Any], partials: Map[String, Handlebars], h
 
     val partialContext = partial.context.map(context.lookup(_)).getOrElse(context)
     partials.get(partialName).map {
-      _(partialContext.binding.toOption getOrElse null, data, partials, helpers) // TODO - partial rendering should receive a context
+      _(partialContext.binding, data, partials, helpers) // TODO - partial rendering should receive a context
     }.getOrElse {
       warn("Could not find partial: %s".format(partialName))
       ""
     }
   }
 
-  protected def hashNode2DataMap(node: HashNode): Map[String, Any] = {
-    node.value.map {
-      case (key, value) => value match {
-        case p:ParameterNode => key -> p.value
-        case other => key -> other
+  protected def valueNodesToBindings(nodes: Iterable[ValueNode]): Iterable[Binding[T]] = {
+    nodes.map {
+      case p:ParameterNode =>
+        contextFactory.bindPrimitiveDynamic(p.value)
+      case i:IdentifierNode => {
+        val value = context.lookup(i).binding.noneIfUndefined getOrElse {
+          Binding.mapTraverse(i.value, data)
+        }
+        if (value.isUndefined) warn(s"Could not lookup path ${i.value} in ${nodes}")
+        value
       }
+      case other =>
+        contextFactory.bindPrimitiveDynamic(other)
     }
+  }
+  protected def valueHashToBindingMap(node: HashNode): Map[String, Binding[T]] = {
+    val bindings = valueNodesToBindings(node.value.values)
+    Map(node.value.keys.zip(bindings).toSeq: _*)
   }
 
   protected def escapeMustache(value: String, unescaped: Boolean = true): String = {
@@ -125,18 +137,18 @@ class DefaultVisitor(context: Context[Any], partials: Map[String, Handlebars], h
     }
   }
 
-  protected def renderBlock(ctx: Context[Any], program: Program, inverse: Option[Program]): String = {
+  protected def renderBlock(ctx: Context[T], program: Program, inverse: Option[Program]): String = {
     if (ctx.truthValue) {
       ctx.map { (itemContext, idx) =>
-        new DefaultVisitor(itemContext, partials, helpers, data ++ (idx.map { "index" -> _ })).visit(program)
+        new DefaultVisitor(itemContext, partials, helpers, data ++ (idx.map { "index" -> contextFactory.bindPrimitive(_) })).visit(program)
       }.mkString
     } else {
       inverse.map(visit).getOrElse("")
     }
   }
 
-  protected def callHelper(helper: Helper, program: Node, params: List[ValueNode]): String = {
-    val optionsBuilder = new HelperOptionsBuilder(context, partials, helpers, data, program, params)
-    helper.apply(context.binding.toOption.getOrElse(""), optionsBuilder.build)
+  protected def callHelper(helper: Helper[T], program: Node, params: List[Binding[T]]): String = {
+    val optionsBuilder = new HelperOptionsBuilder[T](context, partials, helpers, data, program, params)
+    helper.apply(context.binding, optionsBuilder.build)
   }
 }

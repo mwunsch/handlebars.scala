@@ -3,6 +3,7 @@ package com.gilt.handlebars.visitor
 import org.scalatest.{ FunSpec, Matchers }
 import com.gilt.handlebars.Handlebars
 import com.gilt.handlebars.helper.Helper
+import com.gilt.handlebars.DynamicBinding._
 
 class DefaultVisitorSpec extends FunSpec with Matchers {
 
@@ -27,15 +28,15 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
     ignore("escaping") { }
 
     it("compiling with a basic context") {
-      Handlebars("Goodbye\\n{{cruel}}\\n{{world}}!")(context) should equal("Goodbye\\ncruel\\nworld!")
+      Handlebars("Goodbye\\n{{cruel}}\\n{{world}}!").apply(context) should equal("Goodbye\\ncruel\\nworld!")
     }
 
     it("comments") {
-      Handlebars("{{! Goodbye}}Goodbye\\n{{cruel}}\\n{{world}}!")(context) should equal("Goodbye\\ncruel\\nworld!")
+      Handlebars("{{! Goodbye}}Goodbye\\n{{cruel}}\\n{{world}}!").apply(context) should equal("Goodbye\\ncruel\\nworld!")
     }
 
     it("boolean") {
-      Handlebars("{{#goodbye}}GOODBYE {{/goodbye}}cruel {{world}}!")(context) should equal("GOODBYE cruel world!")
+      Handlebars("{{#goodbye}}GOODBYE {{/goodbye}}cruel {{world}}!").apply(context) should equal("GOODBYE cruel world!") //
     }
 
     it("zeros") {
@@ -45,31 +46,31 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
         }
       }
 
-      Handlebars("num1: {{num1}}, num2: {{num2}}")(context) should equal("num1: 42, num2: 0")
-      Handlebars("num: {{.}}")(0) should equal("num: 0")
-      Handlebars("num: {{num1/num2}}")(nestedCtx) should equal ("num: 0")
+      Handlebars("num1: {{num1}}, num2: {{num2}}").apply(context) should equal("num1: 42, num2: 0")
+      Handlebars("num: {{.}}").apply(0) should equal("num: 0")
+      Handlebars("num: {{num1/num2}}").apply(nestedCtx) should equal ("num: 0")
     }
 
     it("newlines") {
-      Handlebars("Alan's\nTest")("") should equal("Alan's\nTest")
-      Handlebars("Alan's\rTest")("") should equal("Alan's\rTest")
+      Handlebars("Alan's\nTest").apply("") should equal("Alan's\nTest")
+      Handlebars("Alan's\rTest").apply("") should equal("Alan's\rTest")
     }
 
     it("escaping text") {
-      Handlebars("Awesome's")("") should equal("Awesome's")
-      Handlebars("Awesome\\")("") should equal("Awesome\\")
-      Handlebars("Awesome\\\\ foo")("") should equal("Awesome\\\\ foo")
-      Handlebars("Awesome {{foo}}")(new { val foo = "\\"}) should equal("Awesome \\")
-      Handlebars(""" " " """)("") should equal(""" " " """)
+      Handlebars("Awesome {{foo}}").apply(Map("foo" -> "\\")) should equal("Awesome \\")
+      Handlebars("Awesome's").apply("") should equal("Awesome's")
+      Handlebars("Awesome\\").apply("") should equal("Awesome\\")
+      Handlebars("Awesome\\\\ foo").apply("") should equal("Awesome\\\\ foo")
+      Handlebars(""" " " """).apply("") should equal(""" " " """)
     }
 
     it("escaping expressions") {
-      Handlebars("{{{awesome}}}")(new { val awesome = "&\"\\<>"}) should equal("&\"\\<>")
-      Handlebars("{{&awesome}}")(new { val awesome = "&\"\\<>"}) should equal("&\"\\<>")
+      Handlebars("{{{awesome}}}").apply(Map("awesome" -> "&\"\\<>")) should equal("&\"\\<>")
+      Handlebars("{{&awesome}}").apply(Map("awesome" -> "&\"\\<>")) should equal("&\"\\<>")
 
       // NOTE, the JS version escapes '` to &#x27;&#x60;
-      Handlebars("{{awesome}}")(new { val awesome = "&\"'`\\<>"}) should equal("&amp;&quot;'`\\&lt;&gt;")
-      Handlebars("{{awesome}}")(new { val awesome = "Escaped, <b> looks like: &lt;b&gt;"}) should equal("Escaped, &lt;b&gt; looks like: &amp;lt;b&amp;gt;")
+      Handlebars("{{awesome}}").apply(Map("awesome" -> "&\"'`\\<>")) should equal("&amp;&quot;'`\\&lt;&gt;")
+      Handlebars("{{awesome}}").apply(Map("awesome" -> "Escaped, <b> looks like: &lt;b&gt;")) should equal("Escaped, &lt;b&gt; looks like: &amp;lt;b&amp;gt;")
     }
 
     it("functions") {
@@ -80,8 +81,8 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
         val more = "More awesome"
         def awesome = more
       }
-      Handlebars("{{awesome}}")(awesome1) should equal("Awesome")
-      Handlebars("{{awesome}}")(awesome2) should equal("More awesome")
+      Handlebars("{{awesome}}").apply(awesome1) should equal("Awesome")
+      Handlebars("{{awesome}}").apply(awesome2) should equal("More awesome")
     }
 
     it("functions with context argument") {
@@ -89,7 +90,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
         val frank = "Frank"
         def awesome(ctx: String) = ctx
       }
-      Handlebars("{{awesome frank}}")(context) should equal("Frank")
+      Handlebars("{{awesome frank}}").apply(context) should equal("Frank")
     }
 
 
@@ -99,7 +100,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
           val expression = "beautiful"
         }
       }
-      Handlebars("Goodbye {{alan/expression}} world!")(ctx) should equal("Goodbye beautiful world!")
+      Handlebars("Goodbye {{alan/expression}} world!").apply(ctx) should equal("Goodbye beautiful world!")
     }
 
     it("nested paths with empty string value") {
@@ -108,17 +109,17 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
           val expression = ""
         }
       }
-      Handlebars("Goodbye {{alan/expression}} world!")(ctx) should equal("Goodbye  world!")
+      Handlebars("Goodbye {{alan/expression}} world!").apply(ctx) should equal("Goodbye  world!")
     }
 
     it("current context path ({{.}}) doesn't hit helpers") {
       val template = "test: {{.}}"
-      val awesomeHelper = Helper {
+      val awesomeHelper = Helper[Any] {
         (context, options) =>
           "awesome"
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("awesome" -> awesomeHelper))
-      builder.build(null) should equal("test: ")
+      builder.build(()) should equal("test: ")
     }
 
     it("complex but empty paths") {
@@ -134,8 +135,8 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
       }
 
       val template = "{{person/name}}"
-      Handlebars(template)(ctx) should equal("")
-      Handlebars(template)(ctx2) should equal("")
+      Handlebars(template).apply(ctx) should equal("")
+      Handlebars(template).apply(ctx2) should equal("")
     }
 
     it("this keyword in paths") {
@@ -143,7 +144,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
       val ctx = new {
         val goodbyes = List("goodbye", "Goodbye", "GOODBYE")
       }
-      Handlebars(template)(ctx) should equal("goodbyeGoodbyeGOODBYE")
+      Handlebars(template).apply(ctx) should equal("goodbyeGoodbyeGOODBYE")
     }
 
     /*
@@ -153,7 +154,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
      */
     it("this keyword nested inside path") {
       val template = "{{#hellos}}{{text/this/foo}}{{/hellos}}"
-      Handlebars(template)(new { val test = "test" }) should equal("")
+      Handlebars(template).apply(new { val test = "test" }) should equal("")
     }
 
     case class Hellos(hellos: List[HelloText])
@@ -161,9 +162,9 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
 
     it("this keyword in helpers") {
       val helpers = Map (
-        "foo" -> Helper {
+        "foo" -> Helper[Any] {
           (context, options) =>
-            "bar %s".format(options.argument(0).getOrElse(""))
+            "bar %s".format(options.argument(0).renderString)
         }
       )
 
@@ -194,9 +195,9 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
      */
     it("this keyword nested inside helpers param") {
       val helpers = Map (
-        "foo" -> Helper {
+        "foo" -> Helper[Any] {
           (context, options) => {
-            "bar %s".format(options.argument(0).getOrElse(""))
+            "bar %s".format(options.argument(0).renderString)
           }
         }
       )
@@ -220,7 +221,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
       val ctx = new {
         val notThere = ""
       }
-      Handlebars(template)(ctx) should equal ("Right On!")
+      Handlebars(template).apply(ctx) should equal ("Right On!")
     }
 
     it("inverted section with false value") {
@@ -228,7 +229,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
       val ctx = new {
         val goodbyes = false
       }
-      Handlebars(template)(ctx) should equal ("Right On!")
+      Handlebars(template).apply(ctx) should equal ("Right On!")
     }
 
     it("inverted section with empty set") {
@@ -236,7 +237,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
       val ctx = new {
         val goodbyes = List.empty
       }
-      Handlebars(template)(ctx) should equal ("Right On!")
+      Handlebars(template).apply(ctx) should equal ("Right On!")
     }
   }
 
@@ -249,7 +250,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
         val world = "world"
         val goodbyes = Iterable(Goodbye("goodbye"), Goodbye("Goodbye"), Goodbye("GOODBYE"))
       }
-      Handlebars(template)(ctx) should equal("goodbye! Goodbye! GOODBYE! cruel world!")
+      Handlebars(template).apply(ctx) should equal("goodbye! Goodbye! GOODBYE! cruel world!")
     }
 
     it("array with @index") {
@@ -258,7 +259,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
         val world = "world"
         val goodbyes = Iterable(Goodbye("goodbye"), Goodbye("Goodbye"), Goodbye("GOODBYE"))
       }
-      Handlebars(template)(ctx) should equal("0. goodbye! 1. Goodbye! 2. GOODBYE! cruel world!")
+      Handlebars(template).apply(ctx) should equal("0. goodbye! 1. Goodbye! 2. GOODBYE! cruel world!")
     }
 
     it("empty block") {
@@ -267,7 +268,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
         val world = "world"
         val goodbyes = Iterable(Goodbye("goodbye"), Goodbye("Goodbye"), Goodbye("GOODBYE"))
       }
-      Handlebars(template)(ctx) should equal("cruel world!")
+      Handlebars(template).apply(ctx) should equal("cruel world!")
     }
 
     it("empty block 2") {
@@ -276,7 +277,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
         val world = "world"
         val goodbyes = Iterable.empty
       }
-      Handlebars(template)(ctx) should equal("cruel world!")
+      Handlebars(template).apply(ctx) should equal("cruel world!")
     }
 
     it("block with complex lookup") {
@@ -285,7 +286,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
         val name = "Alan"
         val goodbyes = Iterable(Goodbye("goodbye"), Goodbye("Goodbye"), Goodbye("GOODBYE"))
       }
-      Handlebars(template)(ctx) should equal("goodbye cruel Alan! Goodbye cruel Alan! GOODBYE cruel Alan! ")
+      Handlebars(template).apply(ctx) should equal("goodbye cruel Alan! Goodbye cruel Alan! GOODBYE cruel Alan! ")
     }
 
     /*
@@ -298,7 +299,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
         val name = "Alan"
         val goodbyes = Iterable(Goodbye("goodbye"), Goodbye("Goodbye"), Goodbye("GOODBYE"))
       }
-      Handlebars(template)(ctx) should equal("goodbye cruel ! Goodbye cruel ! GOODBYE cruel ! ")
+      Handlebars(template).apply(ctx) should equal("goodbye cruel ! Goodbye cruel ! GOODBYE cruel ! ")
     }
 
     it("helper with complex lookup$") {
@@ -308,9 +309,9 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
         val goodbyes = Iterable(Goodbye("Goodbye", "goodbye"))
       }
       val helpers = Map(
-        "link" -> Helper {
+        "link" -> Helper[Any] {
           (goodbye, options) =>
-            val obj = goodbye.asInstanceOf[Goodbye]
+            val obj = goodbye.get.asInstanceOf[Goodbye]
             """<a href="%s/%s">%s</a>""".format(options.argument(0).get, obj.url, obj.text)
         }
       )
@@ -323,7 +324,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
       val template = "{{#goodbyes}}{{../name}}{{/goodbyes}}"
       val ctx = Alan("Alan")
       val helpers = Map(
-        "goodbyes" -> Helper {
+        "goodbyes" -> Helper[Any] {
           (context, options) =>
             val byes = List("goodbye", "Goodbye", "GOODBYE")
             byes.map(bye => "%s %s! ".format(bye, options.visit(context))).mkString
@@ -340,9 +341,9 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
         val goodbyes = Iterable(Goodbye("Goodbye", "goodbye"))
       }
       val helpers = Map(
-        "link" -> Helper {
+        "link" -> Helper[Any] {
           (goodbye, options) =>
-            val obj = goodbye.asInstanceOf[Goodbye]
+            val obj = goodbye.get.asInstanceOf[Goodbye]
             """<a href="%s/%s">%s</a>""".format(options.argument(0).get, obj.url, obj.text)
         }
       )
@@ -356,14 +357,14 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
       val template = "{{#outer}}Goodbye {{#inner}}cruel {{../../omg}}{{/inner}}{{/outer}}"
       val ctx = Hash("OMG!", Iterable(Inner(Iterable(Goodbye("goodbye")))))
 
-      Handlebars(template)(ctx) should equal("Goodbye cruel OMG!")
+      Handlebars(template).apply(ctx) should equal("Goodbye cruel OMG!")
     }
 
     it("block helper") {
       case class Text(text: String)
       val template = "{{#goodbyes}}{{text}}! {{/goodbyes}}cruel {{world}}!"
       val helpers = Map(
-        "goodbyes" -> Helper {
+        "goodbyes" -> Helper[Any] {
           (context, options) =>
             options.visit(Text("GOODBYE"))
         }
@@ -378,7 +379,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
     it("block helper staying in the same context") {
       val template = "{{#form}}<p>{{name}}</p>{{/form}}"
       val helpers = Map(
-        "form" -> Helper {
+        "form" -> Helper[Any] {
           (context, options) =>
             "<form>%s</form>".format(options.visit(context))
         }
@@ -396,9 +397,9 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
 
       val template = "<ul>{{#people}}<li>{{#link}}{{name}}{{/link}}</li>{{/people}}</ul>"
       val helpers = Map(
-        "link" -> Helper {
+        "link" -> Helper[Any] {
           (person, options) =>
-            val self = person.asInstanceOf[Person]
+            val self = person.get.asInstanceOf[Person]
             "<a href=\"/people/%s\">%s</a>".format(self.id, options.visit(person))
         }
       )
@@ -411,7 +412,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
     it("block helper for undefined value") {
       val template = "{{#empty}}shouldn't render{{/empty}}"
       val ctx = new { val notUsed = "notUsed" }
-      Handlebars(template)(ctx) should equal("")
+      Handlebars(template).apply(ctx) should equal("")
     }
 
     it("block helper passing a new context") {
@@ -420,7 +421,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
 
       val template = "{{#form yehuda}}<p>{{name}}</p>{{/form}}"
       val helpers = Map(
-        "form" -> Helper {
+        "form" -> Helper[Any] {
           (context, options) => {
             "<form>%s</form>".format(options.visit(options.argument(0).get))
           }
@@ -439,7 +440,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
 
       val template = "{{#form yehuda/cat}}<p>{{name}}</p>{{/form}}"
       val helpers = Map (
-        "form" -> Helper {
+        "form" -> Helper[Any] {
           (context, options) =>
             "<form>%s</form>".format(options.visit(options.argument(0).get))
         }
@@ -455,12 +456,12 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
 
       val template = "{{#form yehuda}}<p>{{name}}</p>{{#link}}Hello{{/link}}{{/form}}"
       val helpers = Map (
-        "link" -> Helper {
+        "link" -> Helper[Any] {
           (person, options) =>
-            val yehuda = person.asInstanceOf[Person]
+            val yehuda = person.get.asInstanceOf[Person]
             "<a href='%s'>%s</a>".format(yehuda.name, options.visit(person))
         },
-        "form" -> Helper {
+        "form" -> Helper[Any] {
           (context, options) =>
             "<form>%s</form>".format(options.visit(options.argument(0).get))
         }
@@ -474,7 +475,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
       case class NoPeople(none: String)
       val template = "{{#people}}{{name}}{{^}}{{none}}{{/people}}"
       val ctx = NoPeople("No People")
-      Handlebars(template)(ctx) should equal("No People")
+      Handlebars(template).apply(ctx) should equal("No People")
     }
 
     it("block inverted sections with empty arrays") {
@@ -483,7 +484,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
 
       val template = "{{#people}}{{name}}{{^}}{{none}}{{/people}}"
       val ctx = NoPeople("No People", List.empty)
-      Handlebars(template)(ctx) should equal("No People")
+      Handlebars(template).apply(ctx) should equal("No People")
     }
 
     it("block helper inverted sections") {
@@ -493,7 +494,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
 
       val string = "{{#list people}}{{name}}{{^}}<em>Nobody's here</em>{{/list}}"
       val helpers = Map (
-        "list" -> Helper {
+        "list" -> Helper[Any] {
           (context, options) =>
             options.argument(0).get match {
               case i:Iterable[Any] =>
@@ -526,10 +527,5 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
         .withHelpers(helpers)
         .build(rootMessage) should equal("<p>Nobody's here</p>")
     }
-
-
-
-
-
   }
 }

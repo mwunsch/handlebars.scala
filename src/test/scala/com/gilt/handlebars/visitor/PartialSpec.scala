@@ -5,7 +5,7 @@ import com.gilt.handlebars.Handlebars
 import java.io.File
 import com.gilt.handlebars.parser.TemplateNotFoundException
 import com.gilt.handlebars.context.Person
-
+import com.gilt.handlebars.DynamicBinding._
 
 class PartialSpec extends FunSpec with Matchers {
 
@@ -17,7 +17,7 @@ class PartialSpec extends FunSpec with Matchers {
       val partial = Handlebars("{{name}} ({{url}}) ")
       val ctx = Dudes(List(Dude("Yehuda", "http://yehuda"), Dude("Alan", "http://alan")))
 
-      Handlebars(template)(ctx, Map.empty, Map("dude" -> partial)) should equal("Dudes: Yehuda (http://yehuda) Alan (http://alan) ")
+      Handlebars(template).apply(ctx, Map.empty, Map("dude" -> partial)) should equal("Dudes: Yehuda (http://yehuda) Alan (http://alan) ")
     }
 
     it("partials with context") {
@@ -26,7 +26,7 @@ class PartialSpec extends FunSpec with Matchers {
       val template = "Dudes: {{>dude dudes}}"
       val partial = Handlebars("{{#this}}{{name}} ({{url}}) {{/this}}")
       val ctx = Dudes(List(Dude("Yehuda", "http://yehuda"), Dude("Alan", "http://alan")))
-      Handlebars(template)(ctx, Map.empty, Map("dude" -> partial)) should equal("Dudes: Yehuda (http://yehuda) Alan (http://alan) ")
+      Handlebars(template).apply(ctx, Map.empty, Map("dude" -> partial)) should equal("Dudes: Yehuda (http://yehuda) Alan (http://alan) ")
     }
 
 
@@ -37,11 +37,11 @@ class PartialSpec extends FunSpec with Matchers {
       val dudePartial = Handlebars("{{name}} {{> url}} ")
       val urlPartial = Handlebars("<a href='{{url}}'>{{url}}</a>")
       val ctx = Dudes(List(Dude("Yehuda", "http://yehuda"), Dude("Alan", "http://alan")))
-      Handlebars(template)(ctx, Map.empty, Map("dude" -> dudePartial, "url" -> urlPartial)) should equal("Dudes: Yehuda <a href='http://yehuda'>http://yehuda</a> Alan <a href='http://alan'>http://alan</a> ")
+      Handlebars(template).apply(ctx, Map.empty, Map("dude" -> dudePartial, "url" -> urlPartial)) should equal("Dudes: Yehuda <a href='http://yehuda'>http://yehuda</a> Alan <a href='http://alan'>http://alan</a> ")
     }
 
     it("rendering undefined partial yields and empty string") {
-      Handlebars("{{> whatever}}")(new {}) should equal("")
+      Handlebars("{{> whatever}}").apply(new {}) should equal("")
     }
 
     ignore("rendering undefined partial throws an exception") {
@@ -57,7 +57,7 @@ class PartialSpec extends FunSpec with Matchers {
       val template = "Dudes: {{>dude}} {{another_dude}}"
       val dudePartial = Handlebars("{{name}}")
       val ctx = Dude("Jeepers", "Creepers")
-      Handlebars(template)(ctx, Map.empty, Map("dude" -> dudePartial)) should equal("Dudes: Jeepers Creepers")
+      Handlebars(template).apply(ctx, Map.empty, Map("dude" -> dudePartial)) should equal("Dudes: Jeepers Creepers")
     }
 
     it("Partials with slash paths") {
@@ -65,7 +65,7 @@ class PartialSpec extends FunSpec with Matchers {
       val template = "Dudes: {{> shared/dude}}"
       val dudePartial = Handlebars("{{name}}")
       val ctx = Dude("Jeepers", "Creepers")
-      Handlebars(template)(ctx, Map.empty, Map("shared/dude" -> dudePartial)) should equal("Dudes: Jeepers")
+      Handlebars(template).apply(ctx, Map.empty, Map("shared/dude" -> dudePartial)) should equal("Dudes: Jeepers")
     }
 
     it("Partials with slash and point paths") {
@@ -73,7 +73,7 @@ class PartialSpec extends FunSpec with Matchers {
       val template = "Dudes: {{> shared/dude.thing}}"
       val dudePartial = Handlebars("{{name}}")
       val ctx = Dude("Jeepers", "Creepers")
-      Handlebars(template)(ctx, Map.empty, Map("shared/dude.thing" -> dudePartial)) should equal("Dudes: Jeepers")
+      Handlebars(template).apply(ctx, Map.empty, Map("shared/dude.thing" -> dudePartial)) should equal("Dudes: Jeepers")
     }
 
     ignore("Global Partials") {
@@ -99,7 +99,7 @@ class PartialSpec extends FunSpec with Matchers {
       val template = "Dudes: {{> 404}}"
       val dudePartial = Handlebars("{{name}}")
       val ctx = Dude("Jeepers", "Creepers")
-      Handlebars(template)(ctx, Map.empty, Map("404" -> dudePartial)) should equal("Dudes: Jeepers")
+      Handlebars(template).apply(ctx, Map.empty, Map("404" -> dudePartial)) should equal("Dudes: Jeepers")
     }
 
     it("Partials with complex path") {
@@ -107,7 +107,7 @@ class PartialSpec extends FunSpec with Matchers {
       val template = "Dudes: {{> 404/asdf?.bar}}"
       val dudePartial = Handlebars("{{name}}")
       val ctx = Dude("Jeepers", "Creepers")
-      Handlebars(template)(ctx, Map.empty, Map("404/asdf?.bar" -> dudePartial)) should equal("Dudes: Jeepers")
+      Handlebars(template).apply(ctx, Map.empty, Map("404/asdf?.bar" -> dudePartial)) should equal("Dudes: Jeepers")
     }
 
     it("Partials with escaped") {
@@ -115,7 +115,7 @@ class PartialSpec extends FunSpec with Matchers {
       val template = "Dudes: {{> [+404/asdf?.bar]}}"
       val dudePartial = Handlebars("{{name}}")
       val ctx = Dude("Jeepers", "Creepers")
-      Handlebars(template)(ctx, Map.empty, Map("+404/asdf?.bar" -> dudePartial)) should equal("Dudes: Jeepers")
+      Handlebars(template).apply(ctx, Map.empty, Map("+404/asdf?.bar" -> dudePartial)) should equal("Dudes: Jeepers")
     }
 
     it("Partials with string") {
@@ -123,14 +123,14 @@ class PartialSpec extends FunSpec with Matchers {
       val template = "Dudes: {{> \"+404/asdf?.bar\"}}"
       val dudePartial = Handlebars("{{name}}")
       val ctx = Dude("Jeepers", "Creepers")
-      Handlebars(template)(ctx, Map.empty, Map("+404/asdf?.bar" -> dudePartial)) should equal("Dudes: Jeepers")
+      Handlebars(template).apply(ctx, Map.empty, Map("+404/asdf?.bar" -> dudePartial)) should equal("Dudes: Jeepers")
     }
   }
 
   describe("file partials") {
     it("Complext partials") {
       val filetest = new File("src/test/resources/filetest.handlebars")
-      Handlebars(filetest)(new {}) should equal(
+      Handlebars(filetest).apply(new {}) should equal(
         """This is a handlebars file.
           |
           |This is a local partial
@@ -147,7 +147,7 @@ class PartialSpec extends FunSpec with Matchers {
 
 
       intercept[TemplateNotFoundException] {
-        Handlebars(filetest)(new {})
+        Handlebars(filetest).apply(new {})
       }
     }
 
