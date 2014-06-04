@@ -446,6 +446,14 @@ class HandlebarsGrammarSpec extends FunSpec with Matchers with ParserMatchers {
     }
   }
 
+  describe("escaped handlebars") {
+    it("yields the curly braces, removing the escaping"){
+      parsers("\\{{hurray\\}}") should succeedWithResult {
+        Program(List(Content("{{hurray}}")))
+      }
+    }
+  }
+
 }
 
 
