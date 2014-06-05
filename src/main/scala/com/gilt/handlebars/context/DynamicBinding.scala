@@ -2,9 +2,30 @@ package com.gilt.handlebars.context
 
 import com.gilt.handlebars.logging.Loggable
 import java.lang.reflect.Method
+import com.googlecode.concurrentlinkedhashmap.{ConcurrentLinkedHashMap, Weigher}
 
+class MapWeigher extends Weigher[Map[_, _]] {
+  def weightOf(m: Map[_, _]) = m.size
+}
+
+object DynamicBindingCache {
+  val cache = new ConcurrentLinkedHashMap.Builder[Class[_], Map[String, Method]]()
+    .maximumWeightedCapacity(1000)
+    .weigher(new MapWeigher)
+    .build()
+
+  def getMethods(`class`: Class[_]): Map[String, Method] = {
+    val cachedResult = cache.get(`class`)
+    if (cachedResult == null) {
+      val methodMap = Map(`class`.getMethods.map(m => (m.getName + m.getParameterTypes.length) -> m) : _*)
+      cache.put(`class`, methodMap)
+      methodMap
+    } else cachedResult
+  }
+}
 
 class DynamicBinding(val data: Any) extends FullBinding[Any] with Loggable {
+  import DynamicBindingCache.getMethods
   override def toOption = if (data == null) None else Some(data)
   lazy val renderString = if (isTruthy) data.toString else ""
 
@@ -47,7 +68,7 @@ class DynamicBinding(val data: Any) extends FullBinding[Any] with Loggable {
       Seq()
 
   protected def invoke(methodName: String, args: List[Binding[Any]] = Nil): Binding[Any] = {
-    methods.
+    getMethods(data.getClass).
       get(methodName + args.length).
       map(invoke(_, args)).
       getOrElse(VoidBinding[Any])
@@ -63,14 +84,8 @@ class DynamicBinding(val data: Any) extends FullBinding[Any] with Loggable {
     }
   }
 
-  // TODO - move cache to shared structure?
-  lazy protected val methods: Map[String, Method] = {
-     Map(data.getClass.getMethods.map(m => (m.getName + m.getParameterTypes.length) -> m) : _*)
-  }
-
   protected def isPrimitiveType(obj: Any) = obj.isInstanceOf[Int] || obj.isInstanceOf[Long] || obj.isInstanceOf[Float] ||
     obj.isInstanceOf[BigDecimal] || obj.isInstanceOf[Double] || obj.isInstanceOf[String]
-
 }
 
 object DynamicBinding extends BindingFactory[Any] {

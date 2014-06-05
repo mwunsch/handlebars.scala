@@ -18,7 +18,7 @@ def scala211Dependencies(scalaVersion:String) = {
 }
 
 libraryDependencies ++= Seq(
-  "com.google.guava" % "guava" % "12.0",
+  "com.googlecode.concurrentlinkedhashmap" % "concurrentlinkedhashmap-lru" % "1.4",
   "org.slf4j" % "slf4j-api" % "1.6.4",
   "org.slf4j" % "slf4j-simple" % "1.6.4",
   "org.scalatest" %% "scalatest" % "2.1.6" % "test"
