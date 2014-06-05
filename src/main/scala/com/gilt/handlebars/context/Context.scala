@@ -2,6 +2,7 @@ package com.gilt.handlebars.context
 
 import com.gilt.handlebars.logging.Loggable
 import com.gilt.handlebars.parser.{IdentifierNode, Identifier}
+import com.gilt.handlebars.binding.{Binding,VoidBinding}
 
 object ParentIdentifier {
   def unapply(s: String): Option[String] = {
@@ -18,14 +19,14 @@ object ThisIdentifier {
 
 class ChildContext[T](val binding: Binding[T], val parent: Context[T]) extends Context[T] {
   val isRoot = false
-  val isVoid = binding.isUndefined
+  val isVoid = ! binding.isDefined
 
   override def toString = "Child context: binding[%s] parent[%s]".format(binding, parent)
 }
 
 class RootContext[T](val binding: Binding[T]) extends Context[T] {
   val isRoot = true
-  val isVoid = binding.isUndefined
+  val isVoid = ! binding.isDefined
   val parent = VoidContext[T]
   override def toString = "Root context: binding[%s]".format(binding)
 }
@@ -36,9 +37,9 @@ trait Context[T] extends Loggable {
   val binding: Binding[T]
   val parent: Context[T]
 
-  def asOption: Option[Context[T]] = binding.filterEmptyLike.toOption map { t => this }
+  def asOption: Option[Context[T]] = binding.toOption map { t => this }
 
-  def render: String = binding.renderString
+  def render: String = binding.render
 
   def notEmpty[A](fallback: Context[A]): Context[A] = if (isVoid) fallback else this.asInstanceOf[Context[A]]
 

@@ -1,20 +1,21 @@
-package com.gilt.handlebars.context
+package com.gilt.handlebars.binding
 
 trait Binding[T] {
-  val isUndefined: Boolean
-  def filterEmptyLike: Binding[T]
-  protected def isValueless: Boolean
+  val isDefined: Boolean
   def get: T
+  def getOrElse(default: => T): T
   def toOption: Option[T]
-  def renderString: String
+  def render: String
+
   def isTruthy: Boolean
   def isCollection: Boolean
   def isDictionary: Boolean
   def isPrimitive = ! isCollection && ! isDictionary
+
+  def asOption: Option[Binding[T]] = if (isDefined) Some(this) else None
   def asCollection: Iterable[Binding[T]]
   def asDictionaryCollection: Iterable[(String, Binding[T])]
   def traverse(key: String, args: List[Binding[T]] = List.empty): Binding[T] // If traversing a function-like, args are optionally provided
-  def noneIfUndefined: Option[Binding[T]] = if (isUndefined) None else Some(this)
 }
 
 object Binding {
@@ -33,32 +34,53 @@ object Binding {
 
 trait FullBinding[T] extends Binding[T] {
   protected val data: T
+  protected val factory: BindingFactory[T]
   if (data.isInstanceOf[Binding[_]]) {
     throw new Exception("Bug! You tried to wrap a binding with a binding. Don't do that!")
   }
-  def toOption: Option[T] = Some(data)
   def get = data
+  def getOrElse(default: => T) = default
+  def toOption: Option[T] = if (isDefined) Some(data) else None
+
   override def toString = s"FullBinding(${data})"
-  def filterEmptyLike =
-    if (isValueless)
-      VoidBinding[T]
+
+  protected def collectionToIterable: Iterable[T]
+  protected def dictionaryToIterable: Iterable[(String, T)]
+
+  lazy val asCollection =
+    if (isCollection)
+      collectionToIterable.map(factory(_))
     else
-      this
+      Seq()
+
+  lazy val asDictionaryCollection =
+    if (isDictionary)
+      dictionaryToIterable map { case (k,v) => (k, factory(v)) }
+    else
+      Seq()
+  override def equals(o: Any) = o match {
+    case f: FullBinding[_] =>
+      (f.getClass == getClass) && (f.get == data)
+    case _ =>
+      false
+  }
+}
+object FullBinding {
+  def unapply[T](v: FullBinding[T]) = Some(v.get)
 }
 
 trait VoidBinding[T] extends Binding[T]  {
-  val isUndefined = true
-  def toOption: Option[T] = None
-  def renderString = ""
-  def isValueless = true
-  def filterEmptyLike = this
+  val isDefined = false
+  val toOption: Option[T] = None
+  val render = ""
   def traverse(key: String, args: List[Binding[T]] = List.empty) = this
   lazy val asCollection = Seq()
-  def get = throw new RuntimeException("Tried to get value where not defined")
-  def isCollection = false
-  def asDictionaryCollection = Seq()
-  def isDictionary = false
-  def isTruthy = false
+  def get = throw new RuntimeException("Tried to get value from the void")
+  def getOrElse(default: => T) = default
+  val isCollection = false
+  val asDictionaryCollection = Seq()
+  val isDictionary = false
+  val isTruthy = false
   override def toString = "VoidBinding"
 }
 
@@ -66,16 +88,3 @@ object VoidBinding extends VoidBinding[Any] {
   def apply[T]: VoidBinding[T] = this.asInstanceOf[VoidBinding[T]]
 }
 
-trait BindingFactory[T] {
-  def apply(model: T): Binding[T]
-  def bindPrimitive(s: String): Binding[T]
-  def bindPrimitive(s: Int): Binding[T]
-  def bindPrimitive(s: Boolean): Binding[T]
-  def bindPrimitiveDynamic(v: Any) = {
-    v match {
-      case i: Int => bindPrimitive(i)
-      case b: Boolean => bindPrimitive(b)
-      case s => bindPrimitive(s.toString)
-    }
-  } 
-}

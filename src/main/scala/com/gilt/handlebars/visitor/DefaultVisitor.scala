@@ -1,15 +1,11 @@
 package com.gilt.handlebars.visitor
 
-import com.gilt.handlebars.context.VoidBinding
-import com.gilt.handlebars.context.{BindingFactory, Context}
+import com.gilt.handlebars.binding.{VoidBinding, BindingFactory, Binding}
 import com.gilt.handlebars.logging.Loggable
 import com.gilt.handlebars.parser._
-import com.gilt.handlebars.parser.Content
-import com.gilt.handlebars.parser.Comment
-import com.gilt.handlebars.parser.Program
 import com.gilt.handlebars.helper.{HelperOptionsBuilder, Helper}
 import com.gilt.handlebars.Handlebars
-import com.gilt.handlebars.context.Binding
+import com.gilt.handlebars.context.Context
 
 object DefaultVisitor {
   def apply[T](base: Context[T], partials: Map[String, Handlebars[T]], helpers: Map[String, Helper[T]], data: Map[String, Binding[T]])(implicit bindingFactory: BindingFactory[T]) = {    
@@ -51,7 +47,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
         context.lookup(mustache.path, paramsList).asOption.map(_.render)
       }.orElse {
         // 3. Check if path refers to provided data.
-        data.get(mustache.path.string).map(_.renderString)
+        data.get(mustache.path.string).map(_.render)
       }.getOrElse {
         // 4. Could not find path in context, helpers or data.
         warn("Could not find path or helper: %s, context: %s".format(mustache.path, context))
@@ -114,10 +110,10 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
       case p:ParameterNode =>
         contextFactory.bindPrimitiveDynamic(p.value)
       case i:IdentifierNode => {
-        val value = context.lookup(i).binding.noneIfUndefined getOrElse {
+        val value = context.lookup(i).binding.asOption getOrElse {
           Binding.mapTraverse(i.value, data)
         }
-        if (value.isUndefined) warn(s"Could not lookup path ${i.value} in ${nodes}")
+        if (! value.isDefined) warn(s"Could not lookup path ${i.value} in ${nodes}")
         value
       }
       case other =>

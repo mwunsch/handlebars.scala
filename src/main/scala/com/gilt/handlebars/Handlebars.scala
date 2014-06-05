@@ -5,8 +5,7 @@ import java.io.File
 import com.gilt.handlebars.visitor.DefaultVisitor
 import com.gilt.handlebars.helper.Helper
 import com.gilt.handlebars.partial.PartialHelper
-import com.gilt.handlebars.context.BindingFactory
-import com.gilt.handlebars.context.Binding
+import com.gilt.handlebars.binding.{BindingFactory,Binding}
 import com.gilt.handlebars.context.Context
 
 trait Handlebars[T] {

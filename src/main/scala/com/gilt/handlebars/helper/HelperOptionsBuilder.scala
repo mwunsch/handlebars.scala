@@ -1,13 +1,12 @@
 package com.gilt.handlebars.helper
 
 import com.gilt.handlebars.parser._
-import com.gilt.handlebars.context.{BindingFactory, Context, Binding, VoidBinding, FullBinding}
+import com.gilt.handlebars.binding.{BindingFactory, Binding, VoidBinding, FullBinding}
 import com.gilt.handlebars.Handlebars
 import com.gilt.handlebars.logging.Loggable
 import com.gilt.handlebars.parser.Program
 import com.gilt.handlebars.visitor.DefaultVisitor
-import com.gilt.handlebars.context.DynamicBinding
-import com.gilt.handlebars.context.VoidBinding
+import com.gilt.handlebars.context.Context
 
 trait HelperOptions[T] {
   /**

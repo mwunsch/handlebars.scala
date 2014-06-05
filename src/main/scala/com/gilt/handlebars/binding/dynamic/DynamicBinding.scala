@@ -1,8 +1,9 @@
-package com.gilt.handlebars.context
+package com.gilt.handlebars.binding.dynamic
 
 import com.gilt.handlebars.logging.Loggable
 import java.lang.reflect.Method
 import com.googlecode.concurrentlinkedhashmap.{ConcurrentLinkedHashMap, Weigher}
+import com.gilt.handlebars.binding.{Binding,BindingFactory,FullBinding,VoidBinding}
 
 class MapWeigher extends Weigher[Map[_, _]] {
   def weightOf(m: Map[_, _]) = m.size
@@ -26,8 +27,8 @@ object DynamicBindingCache {
 
 class DynamicBinding(val data: Any) extends FullBinding[Any] with Loggable {
   import DynamicBindingCache.getMethods
-  override def toOption = if (data == null) None else Some(data)
-  lazy val renderString = if (isTruthy) data.toString else ""
+  protected val factory = DynamicBinding
+  lazy val render = if (isTruthy) data.toString else ""
 
   lazy val isTruthy = data match {
     case /* UndefinedValue |*/ None | Unit | Nil | null | false | "" => false
@@ -35,12 +36,9 @@ class DynamicBinding(val data: Any) extends FullBinding[Any] with Loggable {
     case _ => true
   }
   override def toString = s"DynamicBinding(${data})"
-  lazy val isDictionary = data.isInstanceOf[Map[_, _]]
-  lazy val isCollection = data.isInstanceOf[Iterable[_]] && ! isDictionary
-  val isUndefined = false
-  protected lazy val isValueless = data match {
-    case /* UndefinedValue |*/ None | Unit | null => true
-    case _ => false
+  lazy val isDefined = data match {
+    case /* UndefinedValue |*/ None | Unit | null => false
+    case _ => true
   }
   def traverse(key: String, args: List[Binding[Any]] = List.empty): Binding[Any] =
     data match {
@@ -50,22 +48,13 @@ class DynamicBinding(val data: Any) extends FullBinding[Any] with Loggable {
           case Some(value) => new DynamicBinding(value)
           case None => VoidBinding[Any]
         }
-
       case _ => invoke(key, args)
     }
 
-
-  lazy val asCollection =
-    if (isCollection)
-      data.asInstanceOf[Iterable[Any]].map(DynamicBinding(_))
-    else
-      Seq(this)
-
-  lazy val asDictionaryCollection =
-    if (isDictionary)
-      data.asInstanceOf[Map[Any, Any]].toSeq map { case (k, v) => (k.toString, DynamicBinding(v)) }
-    else
-      Seq()
+  lazy val isDictionary = data.isInstanceOf[Map[_, _]]
+  lazy val isCollection = data.isInstanceOf[Iterable[_]] && ! isDictionary
+  protected def collectionToIterable = data.asInstanceOf[Iterable[Any]]
+  protected def dictionaryToIterable = data.asInstanceOf[Map[Any, Any]].toIterable map { case (k, v) => (k.toString, v) }
 
   protected def invoke(methodName: String, args: List[Binding[Any]] = Nil): Binding[Any] = {
     getMethods(data.getClass).

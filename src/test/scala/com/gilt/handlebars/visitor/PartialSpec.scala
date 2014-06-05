@@ -5,7 +5,7 @@ import com.gilt.handlebars.Handlebars
 import java.io.File
 import com.gilt.handlebars.parser.TemplateNotFoundException
 import com.gilt.handlebars.context.Person
-import com.gilt.handlebars.DynamicBinding._
+import com.gilt.handlebars.binding.dynamic._
 
 class PartialSpec extends FunSpec with Matchers {
 

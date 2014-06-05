@@ -4,7 +4,7 @@ import com.gilt.handlebars.parser._
 import java.io.File
 import scala.io.Source
 import com.gilt.handlebars.{HandlebarsImpl, HandlebarsBuilder, DefaultHandlebarsBuilder, Handlebars}
-import com.gilt.handlebars.context.BindingFactory
+import com.gilt.handlebars.binding.BindingFactory
 
 /**
  * @author chicks

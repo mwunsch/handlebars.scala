@@ -35,8 +35,8 @@ And an arbitrary Scala object:
 
 Pass those into Handlebars like so:
 
-    scala> import com.gilt.handlebars.DynamicBinding._
-    import com.gilt.handlebars.DynamicBinding._
+    scala> import com.gilt.handlebars.binding.dynamic._
+    import com.gilt.handlebars.binding.dynamic._
 
     scala> import com.gilt.handlebars.Handlebars
     import com.gilt.handlebars.Handlebars
@@ -72,10 +72,56 @@ The signature for apply looks like this:
 
 In order to facilitate multiple ways of interacting with data, Handlebars provides a data-binding facility. Handlebars ships with a default binding strategy, DynamicBinding, which uses Scala reflection to work with scala standard-library data structures and primitives. You can implement your own Binding strategies by implementing the following traits:
 
-- com.gilt.handlebars.Context.FullBinding
-- com.gilt.handlebars.Context.BindingFactory
+- `com.gilt.handlebars.binding.FullBinding`
+- `com.gilt.handlebars.binding.BindingFactory`
 
-Provide the implicit BindingFactory which uses your new binding. If you need an example, see the source code in `Context/DynamicBinding.scala`.
+Provide the implicit BindingFactory which uses your new binding. If you need an example, see the source code in `binding/dynamic/DynamicBinding.scala`.
+
+### Binding Interface
+
++ `def get: T` - Retrieve the contents of the binding. Throws runtime exception if in the void.
++ `def getOrElse(default: => T): T` - Get the contents of the binding if full; else is VoidBinding return default
++ `def toOption: Option[T]` - Similar to the Option constructor, returns Some(value) where value is defined
++ `def render: String` - Returns a string representation for the object, returning empty string where value is not defined.
++ `def traverse(key: String, args: List[Binding[T]] = List.empty): Binding[T]` For dictionaries / objects, traverse into named key, returning a binding for the matched value, VoidBinding if key is not declared.
+
+    Important! Take note of the difference here:
+
+    ```scala
+    val binding = DynamicBinding(Map("a" -> null))
+    binding.traverse("a") // => DynamicBinding(null)
+    binding.traverse("b") // => VoidBinding
+    ```
+
++ `def isTruthy: Boolean` - Returns whether the bound value evaluate to truth in handlebars if expressions?
++ `def isCollection: Boolean` - Returns whether the bound value is an iterable (and not a dictionary)
++ `def isDictionary: Boolean` - Returns whether the bound value is a dictionary
++ `def isPrimitive` - Returns whether bound value is neither collection or dictionary
+
++ `def asOption: Option[Binding[T]]` - If value is defined, returns Some(this), else None
++ `def asCollection: Iterable[Binding[T]]` - Returns List of bindings if isCollection; else empty List
++ `def asDictionaryCollection: Iterable[(String, Binding[T])]` - returns List of key-value tuples if isDictionary; else empty list
+
+### Binding undefined / truthy guidelines
+
+### Unit vs null vs None vs VoidContext
+
+In order to preserve the signal of "a value was defined in your model", vs., "you traversed outside the space covered by your model", bindings are monadic and capture whether they've a value from your model or not: a FullBinding if bound against a value from your model, a VoidBinding is you traversed outside the space of your model.
+
+### isDefined vs VoidContext
+
+isDefined is true if the bound value is within the space of the model, and it evaluates to some value other than null, Unit, or None. VoidContext is, naturally, never defined, and always returns isDefined as false.
+
+### Pattern matching value extraction
+
+You can extract the bound value by matching FullBinding, like so:
+
+```scala
+DynamicBinding(1) match {
+  case FullBinding(value) => value
+  case VoidBinding => Unit
+}
+```
 
 ## Helpers
 

@@ -4,7 +4,7 @@ import org.scalatest.{ FunSpec, Matchers }
 import com.gilt.handlebars.parser._
 import scala.io.Source
 import java.io.File
-import com.gilt.handlebars.DynamicBinding._
+import com.gilt.handlebars.binding.dynamic._
 
 /**
  * User: chicks

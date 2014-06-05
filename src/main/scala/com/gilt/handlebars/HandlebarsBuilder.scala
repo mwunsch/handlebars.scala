@@ -6,7 +6,7 @@ import java.io.File
 import scala.io.Source
 import com.gilt.handlebars.partial.PartialHelper
 import com.gilt.handlebars.logging.Loggable
-import com.gilt.handlebars.context.BindingFactory
+import com.gilt.handlebars.binding.BindingFactory
 
 trait HandlebarsBuilder[T] {
   def program: Program

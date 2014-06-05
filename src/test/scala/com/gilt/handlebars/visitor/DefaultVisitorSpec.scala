@@ -3,7 +3,7 @@ package com.gilt.handlebars.visitor
 import org.scalatest.{ FunSpec, Matchers }
 import com.gilt.handlebars.Handlebars
 import com.gilt.handlebars.helper.Helper
-import com.gilt.handlebars.DynamicBinding._
+import com.gilt.handlebars.binding.dynamic._
 
 class DefaultVisitorSpec extends FunSpec with Matchers {
 
@@ -164,7 +164,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
       val helpers = Map (
         "foo" -> Helper[Any] {
           (context, options) =>
-            "bar %s".format(options.argument(0).renderString)
+            "bar %s".format(options.argument(0).render)
         }
       )
 
@@ -197,7 +197,7 @@ class DefaultVisitorSpec extends FunSpec with Matchers {
       val helpers = Map (
         "foo" -> Helper[Any] {
           (context, options) => {
-            "bar %s".format(options.argument(0).renderString)
+            "bar %s".format(options.argument(0).render)
           }
         }
       )

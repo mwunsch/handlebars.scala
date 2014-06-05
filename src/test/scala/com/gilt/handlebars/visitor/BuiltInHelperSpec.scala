@@ -3,7 +3,7 @@ package com.gilt.handlebars.visitor
 import org.scalatest.{ FunSpec, Matchers }
 import com.gilt.handlebars.Handlebars
 import com.gilt.handlebars.helper.Helper
-import com.gilt.handlebars.DynamicBinding._
+import com.gilt.handlebars.binding.dynamic._
 
 /**
  * User: chicks
@@ -77,7 +77,7 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       val ctx = Ctx(List("a", "b", "c"))
       val detectDataHelper = Helper[Any] {
         (context, options) =>
-          options.data("exclaim").renderString
+          options.data("exclaim").render
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("detectDataInsideEach" -> detectDataHelper))
 
@@ -156,7 +156,7 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       val template = "{{hello @world.bar}}"
       val helloHelper = Helper[Any] {
         (context, options) =>
-          "Hello %s".format(options.argument(0).renderString)
+          "Hello %s".format(options.argument(0).render)
       }
       val builder = Handlebars.createBuilder(template).withHelpers(Map("hello" -> helloHelper))
       // The JS version expects "Hello undefined" which is not a thing in scala. scandlebars will use "" instead
@@ -243,7 +243,7 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
         },
         "world" -> Helper[Any] {
           (context, options) =>
-            val exclaim = options.lookup("exclaim").renderString
+            val exclaim = options.lookup("exclaim").render
             "%s %s%s".format(options.data("adjective").get, options.argument(0).get, exclaim)
         }
       )
@@ -262,7 +262,7 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
         },
         "world" -> Helper[Any] {
           (context, options) =>
-            val exclaim = options.lookup("exclaim").renderString
+            val exclaim = options.lookup("exclaim").render
             "%s %s%s".format(options.data("adjective").get, options.argument(0).get, exclaim)
         }
       )
@@ -281,7 +281,7 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
         },
         "world" -> Helper[Any] {
           (context, options) =>
-            val exclaim = options.lookup("exclaim").renderString
+            val exclaim = options.lookup("exclaim").render
             "%s %s%s".format(options.data("adjective").get, options.argument(0).get, exclaim)
         }
       )
@@ -300,7 +300,7 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
         },
         "world" -> Helper[Any] {
           (context, options) =>
-            val exclaim = options.lookup("exclaim").renderString
+            val exclaim = options.lookup("exclaim").render
             "%s %s%s".format(options.data("adjective").get, options.argument(0).get, exclaim)
         }
       )
@@ -314,12 +314,12 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       val helpers = Map (
         "goodbye" -> Helper[Any] {
           (context, options) =>
-            val goodbye = options.lookup("goodbye").renderString
+            val goodbye = options.lookup("goodbye").render
             goodbye.toString.toUpperCase
         },
         "cruel" -> Helper[Any] {
           (context, options) =>
-            val world = options.lookup("world").renderString
+            val world = options.lookup("world").render
             "cruel %s".format(world.toString.toUpperCase)
         }
       )
@@ -333,12 +333,12 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       val helpers = Map (
         "goodbye" -> Helper[Any] {
           (context, options) =>
-            val goodbye = options.lookup("goodbye").renderString
+            val goodbye = options.lookup("goodbye").render
             "%s%s".format(goodbye.toString.toUpperCase, options.visit(context))
         },
         "cruel" -> Helper[Any] {
           (context, options) =>
-            val world = options.lookup("world").renderString
+            val world = options.lookup("world").render
             "cruel %s".format(world.toString.toUpperCase)
         }
       )
@@ -352,7 +352,7 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       val helpers = Map (
         "goodbye" -> Helper[Any] {
           (context, options) =>
-            val goodbye = options.lookup("goodbye").renderString
+            val goodbye = options.lookup("goodbye").render
             goodbye.toString.toUpperCase
         },
         "cruel" -> Helper[Any] {
@@ -370,7 +370,7 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       val helpers = Map (
         "goodbye" -> Helper[Any] {
           (context, options) =>
-            val goodbye = options.lookup("goodbye").renderString
+            val goodbye = options.lookup("goodbye").render
             "%s%s".format(goodbye.toString.toUpperCase, options.visit(context))
         },
         "cruel" -> Helper[Any] {
@@ -433,7 +433,7 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       val helpers = Map (
         "goodbye" -> Helper[Any] {
           (context, options) =>
-            "GOODBYE %s %s %s TIMES".format(options.data("cruel").renderString, options.visit(context), options.data("times"))
+            "GOODBYE %s %s %s TIMES".format(options.data("cruel").render, options.visit(context), options.data("times"))
         }
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)

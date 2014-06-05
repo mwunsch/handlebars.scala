@@ -1,7 +1,7 @@
 package com.gilt.handlebars.helper
 
-import com.gilt.handlebars.context.Binding
-import com.gilt.handlebars.context.BindingFactory
+import com.gilt.handlebars.binding.Binding
+import com.gilt.handlebars.binding.BindingFactory
 
 /**
  * The Scandlebars definition of a handlebars helper.

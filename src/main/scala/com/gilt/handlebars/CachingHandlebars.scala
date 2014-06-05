@@ -5,8 +5,7 @@ import com.gilt.handlebars.partial.PartialHelper
 import java.io.File
 import scala.io.Source
 import com.gilt.handlebars.helper.Helper
-import com.gilt.handlebars.context.BindingFactory
-import com.gilt.handlebars.context.Binding
+import com.gilt.handlebars.binding.{BindingFactory, Binding}
 
 /**
  * User: chicks
