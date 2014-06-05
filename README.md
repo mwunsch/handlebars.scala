@@ -70,7 +70,7 @@ The signature for apply looks like this:
 
 ## Bindings
 
-In order to facilitate multiple ways of interacting with data, Handlebars provides a data-binding facility. Handlebars ships with a default binding strategy, DynamicBinding, which uses Scala reflection to work with scala standard-library data structures and primitives. You can implement your own Binding strategies by implementing the following:
+In order to facilitate multiple ways of interacting with data, Handlebars provides a data-binding facility. Handlebars ships with a default binding strategy, DynamicBinding, which uses Scala reflection to work with scala standard-library data structures and primitives. You can implement your own Binding strategies by implementing the following traits:
 
 - com.gilt.handlebars.Context.FullBinding
 - com.gilt.handlebars.Context.BindingFactory
@@ -82,24 +82,24 @@ Provide the implicit BindingFactory which uses your new binding. If you need an 
 The trait for a helper looks like this:
 
     trait Helper[Any] {
-      def apply(model: Binding[Any], options: HelperOptions[Any]): String
+      def apply(binding: Binding[Any], options: HelperOptions[Any]): String
     }
 
-+ `model` the model of the context the helper was called from.
++ `binding` the binding for the model in the context from which the helper was called.
 + `options` provides helper functions to interact with the context and evaluate the body of the helper, if present.
 
 You can define a new helper by extending the trait above, or you can use companion obejct apply method to define one on the fly:
 
     val fullNameHelper = Helper[Any] {
-      (model, options) =>
+      (binding, options) =>
         "%s %s".format(options.lookup("firstName").renderString, options.lookup("lastName").renderString)
     }
 
-If you know that the information you need is on `model`, you can do the same thing by accessing first and last name on the model directly. However, you will be responsible for casting model to the correct type.
+If you know that the information you need is on `binding`, you can do the same thing by accessing first and last name on the data directly. However, you will be responsible for casting model to the correct type.
 
     val fullNameHelper = Helper[Any] {
-      (model, options) =>
-        val person = model.get.asInstanceOf[Person]
+      (binding, options) =>
+        val person = binding.get.asInstanceOf[Person]
         "%s %s".format(person.firstName, person.lastName)
     }
 
@@ -108,18 +108,22 @@ If you know that the information you need is on `model`, you can do the same thi
 The `HelperOption[T]` object gives you the tools you need to get things done in your helper. The primary methods are:
 
 + `def argument(index: Int): Binding[T]` Retrieve an argument from the list provided to the helper by its index.
-+ `def data(key: String): String` Retrieve data provided to the Handlebars template by its key.
-+ `def visit(binding: Binding[T]): String` Evaluates the body of the helper using the provided model as a context.
++ `def data(key: String): Binding[T]` Retrieve data provided to the Handlebars template by its key.
++ `def visit(binding: Binding[T]): String` Evaluates the body of the helper using a context with the provided binding.
 + `def inverse(binding: Binding[T]): String` Evaluate the inverse of body of the helper using the provided model as a context.
-+ `def lookup(path: String): Option[T]` Look up a value for a path in the the current context. The one in which the helper was called.
++ `def lookup(path: String): Binding[T]` Look up a value for a path in the the current context. The one in which the helper was called.
 
-## Caveats
+## Caveats when using DynamicBinding
 
 **Implicit conversions will not work in a template**. Because Handlebars.scala makes heavy use of reflection. Bummer, I know. This leads me too...
 
 **Handlebars.scala makes heavy use of reflection**. This means that there could be unexpected behavior. Method overloading will behave in bizarre ways. There is likely a performance penalty. I'm not sophisticated enough in the arts of the JVM to know the implications of this.
 
 **Not everything from the JavaScript handlebars is supported**. See [NOTSUPPORTED](NOTSUPPORTED.md) for a list of the unsupported features. There are some things JavaScript can do that simply does not make sense to do in Scala.
+
+### Alternatives to DynamicBinding
+
+If you wish for more type-safety, you can consider binding to an AST such as that provided by a popular Json library. [handlebars-play-json](https://github.com/SpinGo/handlebars-play-json) provides a binding strategy that works directly with the PlayJson AST, and provides similar truthy / collection / traversal behavior as you would find using JavaScript values in handlebars-js.
 
 ## Thanks
 

@@ -79,22 +79,22 @@ class ContextSpec extends FunSpec with Matchers {
 
     it("looks up a path with empty Option: '../content.description'") {
       val ctx = makeContext(productNoContent, person)
-      ctx.lookup(getIdentifier("{{../content.description}}")).isUndefined should equal(true)
+      ctx.lookup(getIdentifier("{{../content.description}}")).isVoid should equal(true)
     }
 
     it("looks up a path that is undefined: 'undefined'") {
       val ctx = makeContext(product)
-      ctx.lookup(getIdentifier("{{undefined}}")).isUndefined should equal(true)
+      ctx.lookup(getIdentifier("{{undefined}}")).isVoid should equal(true)
     }
 
     it("looks up a path that is undefined: '../../undefined'") {
       val ctx = makeContext(sale, product, person)
-      ctx.lookup(getIdentifier("{{../../undefined}}")).isUndefined should equal(true)
+      ctx.lookup(getIdentifier("{{../../undefined}}")).isVoid should equal(true)
     }
 
     it("looks up a path that is undefined: '../content.undefined'") {
       val ctx = makeContext(product, sale)
-      ctx.lookup(getIdentifier("{{../content.undefined}}")).isUndefined should equal(true)
+      ctx.lookup(getIdentifier("{{../content.undefined}}")).isVoid should equal(true)
     }
 
     it("looks up a path with a list: '../name'") {
@@ -104,7 +104,7 @@ class ContextSpec extends FunSpec with Matchers {
 
     it("looks up a path with list root parent: '../name'") {
       val ctx = makeContext(sale.stores, Stores.WOMEN)
-      ctx.lookup(getIdentifier("{{../name}}")).isUndefined should equal(true)
+      ctx.lookup(getIdentifier("{{../name}}")).isVoid should equal(true)
     }
 
     it("looks up a path with nonexistent ancestors, but stays on root node: '../../../../../../../name'") {
@@ -114,7 +114,7 @@ class ContextSpec extends FunSpec with Matchers {
 
     it("looks up a path with nonexistent children: 'content.description.undefined.undefined'") {
       val ctx = makeContext(product)
-      ctx.lookup(getIdentifier("{{content.description.undefined.undefined}}")).isUndefined should equal(true)
+      ctx.lookup(getIdentifier("{{content.description.undefined.undefined}}")).isVoid should equal(true)
     }
 
     it("looks up a path in a Map: 'city'") {
@@ -149,7 +149,7 @@ class ContextSpec extends FunSpec with Matchers {
 
     it("looks up a path incorrectly using a literal: '[alan].expression'") {
       val ctx = makeContext(person)
-      ctx.lookup(getIdentifier("{{[@alan].expression}}")).isUndefined should equal(true)
+      ctx.lookup(getIdentifier("{{[@alan].expression}}")).isVoid should equal(true)
     }
   }
 }

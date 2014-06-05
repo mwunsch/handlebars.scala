@@ -18,21 +18,21 @@ object ThisIdentifier {
 
 class ChildContext[T](val binding: Binding[T], val parent: Context[T]) extends Context[T] {
   val isRoot = false
-  val isUndefined = binding.isUndefined
+  val isVoid = binding.isUndefined
 
-  override def toString = "Child context: model[%s] parent[%s]".format(binding, parent)
+  override def toString = "Child context: binding[%s] parent[%s]".format(binding, parent)
 }
 
 class RootContext[T](val binding: Binding[T]) extends Context[T] {
   val isRoot = true
-  val isUndefined = binding.isUndefined
+  val isVoid = binding.isUndefined
   val parent = VoidContext[T]
-  override def toString = "Root context: model[%s]".format(binding)
+  override def toString = "Root context: binding[%s]".format(binding)
 }
 
 trait Context[T] extends Loggable {
   val isRoot: Boolean
-  val isUndefined: Boolean
+  val isVoid: Boolean
   val binding: Binding[T]
   val parent: Context[T]
 
@@ -40,7 +40,7 @@ trait Context[T] extends Loggable {
 
   def render: String = binding.renderString
 
-  def notEmpty[A](fallback: Context[A]): Context[A] = if (isUndefined) fallback else this.asInstanceOf[Context[A]]
+  def notEmpty[A](fallback: Context[A]): Context[A] = if (isVoid) fallback else this.asInstanceOf[Context[A]]
 
   def lookup(path: IdentifierNode, args: List[Binding[T]] = List.empty): Context[T] =
     lookup(path.value, args)
@@ -57,7 +57,7 @@ trait Context[T] extends Loggable {
    * introduced by Iterable, Option, etc.
    */
   def safeParent: Context[T] = {
-    if (isRoot || isUndefined)
+    if (isRoot || isVoid)
       this
     else if (parent.binding.isDictionary)
       this.parent
@@ -69,18 +69,18 @@ trait Context[T] extends Loggable {
 
   // dictionaryFallbackFlag is work-around for a case in which a context is used to iterate a dictionary
   // It'd be preferable to not create a context for the dictionary (thus preventing the need to skip it), or
-  // to capture signal somehow that the model is being used that way
+  // to capture signal somehow that the binding is being used that way
   def lookup(path: List[String], args: List[Binding[T]], dictionaryFallbackFlag: Boolean): Context[T] = {
     path match {
       case Nil => this
-      case _ if isUndefined => this
+      case _ if isVoid => this
       case ParentIdentifier(p) :: tail =>
         safeParent.lookup(tail, args, true)
 
       case ThisIdentifier(p) :: tail => if (tail.isEmpty) this else lookup(tail, args)
       case head :: tail => {
         val nextChild = childContext(binding.traverse(head, args))
-        if (dictionaryFallbackFlag && nextChild.isUndefined && binding.isDictionary)
+        if (dictionaryFallbackFlag && nextChild.isVoid && binding.isDictionary)
           safeParent.lookup(head :: tail, args)
         else
           nextChild.lookup(tail, args)
@@ -89,12 +89,8 @@ trait Context[T] extends Loggable {
   }
   def lookup(path: List[String], args: List[Binding[T]]): Context[T] = lookup(path, args, false)
 
-  def childContext(model: Binding[T]): Context[T] =
-    new ChildContext[T](model, this)
-
-  def isCollection = {
-    binding.isCollection
-  }
+  def childContext(binding: Binding[T]): Context[T] =
+    new ChildContext[T](binding, this)
 
   def map[R]( mapFn: (Context[T], Option[Int]) => R): Iterable[R] = {
     if (binding.isCollection)
@@ -115,8 +111,8 @@ object VoidContext extends Context[Any] {
   val binding = VoidBinding[Any]
   val parent = VoidContext
   val isRoot = false
-  val isUndefined = true // SMELL: this attribute stinks
+  val isVoid = true
   override def asOption = None
-  def apply[T] = this.asInstanceOf[Context[T]]
   override def toString = "Void"
+  def apply[T] = this.asInstanceOf[Context[T]]
 }

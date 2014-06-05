@@ -74,10 +74,10 @@ class DynamicBinding(val data: Any) extends FullBinding[Any] with Loggable {
 }
 
 object DynamicBinding extends BindingFactory[Any] {
-  def apply(_model: Any): Binding[Any] =
-    new DynamicBinding(_model)
+  def apply(model: Any): Binding[Any] =
+    new DynamicBinding(model)
 
-  def bindPrimitive(v: String) = apply(v)
-  def bindPrimitive(v: Boolean) = apply(v)
+  def bindPrimitive(model: String) = apply(model)
+  def bindPrimitive(model: Boolean) = apply(model)
   def bindPrimitive(model: Int) = apply(model)
 }
