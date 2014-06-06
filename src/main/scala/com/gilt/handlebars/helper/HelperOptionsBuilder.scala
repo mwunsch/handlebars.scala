@@ -80,7 +80,7 @@ class HelperOptionsBuilder(context: Context[Any],
         warn("Path not found for helper: %s".format(i.string))
         ""
       }
-    case a => a.toString
+    case a => a
   }
 
   private val inverseNode: Option[Node] = program match {
