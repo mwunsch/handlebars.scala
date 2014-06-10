@@ -102,9 +102,7 @@ Provide the implicit BindingFactory which uses your new binding. If you need an 
 + `def asCollection: Iterable[Binding[T]]` - Returns List of bindings if isCollection; else empty List
 + `def asDictionaryCollection: Iterable[(String, Binding[T])]` - returns List of key-value tuples if isDictionary; else empty list
 
-### Binding undefined / truthy guidelines
-
-### Unit vs null vs None vs VoidContext
+### `Unit` vs `null` vs `None` vs `VoidContext`
 
 In order to preserve the signal of "a value was defined in your model", vs., "you traversed outside the space covered by your model", bindings are monadic and capture whether they've a value from your model or not: a FullBinding if bound against a value from your model, a VoidBinding is you traversed outside the space of your model.
 
