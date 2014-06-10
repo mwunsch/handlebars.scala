@@ -37,7 +37,7 @@ trait Context[T] extends Loggable {
   val binding: Binding[T]
   val parent: Context[T]
 
-  def asOption: Option[Context[T]] = binding.toOption map { t => this }
+  def asOption: Option[Context[T]] = binding.asOption map { t => this }
 
   def render: String = binding.render
 

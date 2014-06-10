@@ -30,20 +30,6 @@ class DynamicBindingSpec extends FunSpec with Matchers {
     }
   }
 
-  describe("toOption") {
-    for {
-      (value, result) <- List[(Any, Option[Any])](
-        (null    , None),
-        (None   -> None),
-        (Unit   -> None),
-        (List() -> Some(List())),
-        (""     -> Some("")),
-        (0      -> Some(0)))
-    } it(s"with ${d(value)} returns ${d(result)}") {
-      DynamicBinding(value).toOption should equal(result)
-    }
-  }
-
   describe("render") {
     for {
       (value, expectation) <- List(

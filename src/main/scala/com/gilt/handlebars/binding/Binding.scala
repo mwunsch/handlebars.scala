@@ -4,7 +4,6 @@ trait Binding[T] {
   val isDefined: Boolean
   def get: T
   def getOrElse(default: => T): T
-  def toOption: Option[T]
   def render: String
 
   def isTruthy: Boolean
@@ -40,7 +39,6 @@ trait FullBinding[T] extends Binding[T] {
   }
   def get = data
   def getOrElse(default: => T) = default
-  def toOption: Option[T] = if (isDefined) Some(data) else None
 
   override def toString = s"FullBinding(${data})"
 
@@ -71,7 +69,6 @@ object FullBinding {
 
 trait VoidBinding[T] extends Binding[T]  {
   val isDefined = false
-  val toOption: Option[T] = None
   val render = ""
   def traverse(key: String, args: List[Binding[T]] = List.empty) = this
   lazy val asCollection = Seq()
