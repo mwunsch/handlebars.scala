@@ -31,7 +31,7 @@ class DynamicBinding(val data: Any) extends FullBinding[Any] with Loggable {
   lazy val render = if (isTruthy) data.toString else ""
 
   lazy val isTruthy = data match {
-    case /* UndefinedValue |*/ None | Unit | Nil | null | false | "" => false
+    case /* UndefinedValue |*/ None | Unit | Nil | null | false => false
     case v: scala.runtime.BoxedUnit => false
     case _ => true
   }

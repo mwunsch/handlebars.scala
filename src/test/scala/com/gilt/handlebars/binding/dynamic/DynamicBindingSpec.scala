@@ -18,12 +18,14 @@ class DynamicBindingSpec extends FunSpec with Matchers {
   describe("isTruthy") {
     for {
       (value, truthy) <- List(
-        (List()      -> false),
         (null         , false),
         (None        -> false),
-        (""          -> false),
         (Unit        -> false),
+        (false       -> false),
+        (List()      -> false),
+        (""          -> true), // DynamicBinding behavior does not match JavaScript truth evaluation here; We may wish to revise?
         (0           -> true),
+        (true        -> true),
         ("non-empty" -> true))
     } it(s"with ${d(value)} returns $truthy") {
       DynamicBinding(value).isTruthy should equal(truthy)
@@ -36,10 +38,10 @@ class DynamicBindingSpec extends FunSpec with Matchers {
         (List()      -> ""),
         (null         , ""),
         (None        -> ""),
-        (""          -> ""),
         (Unit        -> ""),
-        (0           -> "0"),
         (false       -> ""),
+        (""          -> ""),
+        (0           -> "0"),
         ("non-empty" -> "non-empty"))
     } it(s"with ${d(value)} returns ${d(expectation)}") {
       DynamicBinding(value).render should equal(expectation)
@@ -76,11 +78,11 @@ class DynamicBindingSpec extends FunSpec with Matchers {
   describe("asOption") {
     for {
       (value, expectation) <- List(
-        (List()      -> Some(DynamicBinding(List()))),
         (null         , None),
         (None        -> None),
-        (""          -> Some(DynamicBinding(""))),
         (Unit        -> None),
+        (""          -> Some(DynamicBinding(""))),
+        (List()      -> Some(DynamicBinding(List()))),
         (0           -> Some(DynamicBinding(0))),
         (false       -> Some(DynamicBinding(false))))
     } it(s"with ${d(value)} returns ${d(expectation)}") {
