@@ -38,7 +38,7 @@ trait FullBinding[T] extends Binding[T] {
     throw new Exception("Bug! You tried to wrap a binding with a binding. Don't do that!")
   }
   def get = data
-  def getOrElse(default: => T) = default
+  def getOrElse(default: => T) = data
 
   override def toString = s"FullBinding(${data})"
 

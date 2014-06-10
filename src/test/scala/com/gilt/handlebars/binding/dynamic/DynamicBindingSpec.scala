@@ -135,4 +135,9 @@ class DynamicBindingSpec extends FunSpec with Matchers {
       }) should equal (1)
     }
   }
+  describe("getOrElse") {
+    it("returns the contained value (even if said contained value is undefined-like)") {
+      DynamicBinding(None) getOrElse { "Dance party!" } should equal(None)
+    }
+  }
 }
