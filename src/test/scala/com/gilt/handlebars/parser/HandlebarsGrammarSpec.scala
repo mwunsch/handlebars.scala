@@ -1,12 +1,11 @@
 package com.gilt.handlebars.parser
 
-import org.scalatest.FunSpec
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.{ FunSpec, Matchers }
 import org.scalatest.Inside
 
 import com.gilt.scalatest.matchers._
 
-class HandlebarsGrammarSpec extends FunSpec with ShouldMatchers with ParserMatchers {
+class HandlebarsGrammarSpec extends FunSpec with Matchers with ParserMatchers {
   import com.gilt.handlebars.parser._
   val parsers = new HandlebarsGrammar(("{{","}}"))
 
@@ -443,6 +442,14 @@ class HandlebarsGrammarSpec extends FunSpec with ShouldMatchers with ParserMatch
             List("foo","baz")
           ))
         ))
+      }
+    }
+  }
+
+  describe("escaped handlebars") {
+    it("yields the curly braces, removing the escaping"){
+      parsers("\\{{hurray\\}}") should succeedWithResult {
+        Program(List(Content("{{hurray}}")))
       }
     }
   }

@@ -9,7 +9,13 @@ trait ProgramHelper {
   def programFromString(template: String): Program = {
     val parseResult = HandlebarsGrammar(template)
     parseResult.getOrElse {
-      sys.error("Could not parse template:\n\n%s\n%s".format(parseResult.next.source, parseResult.next))
+      val next = parseResult.next
+      sys.error(s"""Could not parse template @ line ${next.pos.line} column ${next.pos.column}:
+
+${next.source}
+
+${next}
+""")
     }
   }
 

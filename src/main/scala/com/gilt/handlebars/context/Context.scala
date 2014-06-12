@@ -1,41 +1,8 @@
 package com.gilt.handlebars.context
 
 import com.gilt.handlebars.logging.Loggable
-import java.lang.reflect.Method
 import com.gilt.handlebars.parser.{IdentifierNode, Identifier}
-
-/**
- * User: chicks
- * Date: 5/30/13
- */
-trait DefaultContextFactory extends ContextFactory {
-  def createUndefined[T]: Context[T] = {
-    new Context[T] with DefaultContextFactory {
-      override val isRoot = false
-      override val isUndefined = true
-      val model: T = null.asInstanceOf[T]
-      val parent: Context[T] = null.asInstanceOf[Context[T]]
-    }
-  }
-
-  def createRoot[T](model: T): Context[T] = {
-    new Context[T] with DefaultContextFactory{
-      val model: T = model
-      val isUndefined: Boolean = false
-      val isRoot: Boolean = true
-      val parent: Context[T] = createUndefined
-    }
-  }
-
-  def createChild[T](model: T, parent: Context[T]): Context[T] = {
-    new Context[T] with DefaultContextFactory {
-      val model: T = model
-      val isUndefined: Boolean = false
-      val isRoot: Boolean = false
-      val parent: Context[T] = parent
-    }
-  }
-}
+import com.gilt.handlebars.binding.{Binding,VoidBinding}
 
 object ParentIdentifier {
   def unapply(s: String): Option[String] = {
@@ -48,135 +15,105 @@ object ThisIdentifier {
     if (".".equals(s) || "this".equals(s)) Some(s) else None
   }
 }
-object Context {
-  /**
-   * mimic "falsy" values of Handlebars.js, plus care about Options
+
+
+class ChildContext[T](val binding: Binding[T], val parent: Context[T]) extends Context[T] {
+  val isRoot = false
+  val isVoid = ! binding.isDefined
+
+  override def toString = "Child context: binding[%s] parent[%s]".format(binding, parent)
+}
+
+class RootContext[T](val binding: Binding[T]) extends Context[T] {
+  val isRoot = true
+  val isVoid = ! binding.isDefined
+  val parent = VoidContext[T]
+  override def toString = "Root context: binding[%s]".format(binding)
+}
+
+trait Context[T] extends Loggable {
+  val isRoot: Boolean
+  val isVoid: Boolean
+  val binding: Binding[T]
+  val parent: Context[T]
+
+  def asOption: Option[Context[T]] = binding.asOption map { t => this }
+
+  def render: String = binding.render
+
+  def notEmpty[A](fallback: Context[A]): Context[A] = if (isVoid) fallback else this.asInstanceOf[Context[A]]
+
+  def lookup(path: IdentifierNode, args: List[Binding[T]] = List.empty): Context[T] =
+    lookup(path.value, args)
+
+
+  /* mimic "falsy" values of Handlebars.js, plus care about Options
    * @param a
    * @return
    */
-  def truthValue(a: Any): Boolean = a match {
-    case /* UndefinedValue |*/ None | false | Nil | null | "" => false
-    case _ => true
-  }
+  def truthValue = binding.isTruthy
 
   /**
    * Returns the parent of the provided context, but skips artificial levels in the hierarchy
    * introduced by Iterable, Option, etc.
    */
-  def safeParent(ctx: Context[_]): Context[Any] = {
-    if (ctx.isRoot || ctx.isUndefined) {
-      ctx
-    } else {
-      ctx.parent.model match {
-        case map:Map[String,_] => ctx.parent
-        case list:Iterable[_] => safeParent(ctx.parent.parent)
-        case _ => ctx.parent
+  def safeParent: Context[T] = {
+    if (isRoot || isVoid)
+      this
+    else if (parent.binding.isDictionary)
+      this.parent
+    else if (parent.binding.isCollection)
+      this.parent.safeParent
+    else
+      this.parent
+  }
+
+  // dictionaryFallbackFlag is work-around for a case in which a context is used to iterate a dictionary
+  // It'd be preferable to not create a context for the dictionary (thus preventing the need to skip it), or
+  // to capture signal somehow that the binding is being used that way
+  def lookup(path: List[String], args: List[Binding[T]], dictionaryFallbackFlag: Boolean): Context[T] = {
+    path match {
+      case Nil => this
+      case _ if isVoid => this
+      case ParentIdentifier(p) :: tail =>
+        safeParent.lookup(tail, args, true)
+
+      case ThisIdentifier(p) :: tail => if (tail.isEmpty) this else lookup(tail, args)
+      case head :: tail => {
+        val nextChild = childContext(binding.traverse(head, args))
+        if (dictionaryFallbackFlag && nextChild.isVoid && binding.isDictionary)
+          safeParent.lookup(head :: tail, args)
+        else
+          nextChild.lookup(tail, args)
       }
     }
+  }
+  def lookup(path: List[String], args: List[Binding[T]]): Context[T] = lookup(path, args, false)
+
+  def childContext(binding: Binding[T]): Context[T] =
+    new ChildContext[T](binding, this)
+
+  def map[R]( mapFn: (Context[T], Option[Int]) => R): Iterable[R] = {
+    if (binding.isCollection)
+      binding.asCollection.zipWithIndex.map {
+        case (item, idx) => mapFn(childContext(item), Some(idx))
+      }
+    else
+      Seq(mapFn(this, None))
   }
 }
 
-trait Context[+T] extends ContextFactory with Loggable {
-  val isRoot: Boolean
-  val isUndefined: Boolean
-  val model: T
-  val parent: Context[T]
+object Context {
+  def apply[T](binding: Binding[T]): Context[T] =
+    new RootContext(binding)
+}
 
-  def asOption: Option[Context[T]] = if (isUndefined || model == null) None else Some(this)
-  def notEmpty[A](fallback: Context[A]): Context[A] = if (isUndefined) fallback else this.asInstanceOf[Context[A]]
-
-  override def toString = "Context model[%s] parent[%s]".format(model, parent)
-
-  def lookup(path: IdentifierNode, args: List[Any] = List.empty): Context[Any] = {
-    args match {
-      case identifiers: List[IdentifierNode] =>
-        lookup(path.value, identifiers.map(lookup(_).model))
-      case _ =>
-        lookup(path.value, args)
-    }
-
-  }
-
-  def truthValue: Boolean = Context.truthValue(model)
-
-  def lookup(path: List[String], args: List[Any]): Context[Any] = {
-    path.head match {
-      case p if isUndefined => this
-      case ParentIdentifier(p) =>
-        if (isRoot) {
-          // Too many '..' in the path so return this context, or drop the '..' and
-          // continue to look up the rest of the path
-          if (path.tail.isEmpty) this else lookup(path.tail, args)
-        } else {
-          if (path.tail.isEmpty) {
-            // Just the parent, '..'. Path doesn't access any property on it.
-            Context.safeParent(this)
-          } else {
-            Context.safeParent(this).lookup(path.tail, args)
-          }
-        }
-
-      case ThisIdentifier(p) => if (path.tail.isEmpty) this else lookup(path.tail, args)
-      case _ =>
-        model match {
-          case Some(m) => createChild(m, parent).lookup(path, args)
-          case map:Map[String, _] =>
-            invoke(path.head, args).asOption.map {
-              ctx => if (path.tail.isEmpty) ctx else ctx.lookup(path.tail, args)
-            }.getOrElse(parent.lookup(path, args))
-          case list:Iterable[_] => {
-            if (isRoot) this else parent.lookup(path, args)
-          }
-          case _ => if (path.tail.isEmpty) invoke(path.head, args) else invoke(path.head, args).lookup(path.tail, args)
-        }
-    }
-  }
-
-  protected def invoke(methodName: String, args: List[Any] = Nil): Context[Any] = {
-    getMethods(model.getClass)
-      .get(methodName + args.length)
-      .flatMap(invoke(_, args)).map {
-        value =>
-          createChild(value, this)
-      }.orElse {
-        model match {
-          case map:Map[String, _] => map.get(methodName).map( v => createChild(v, this))
-          case _ => None
-        }
-      }.getOrElse(createUndefined)
-  }
-
-
-  protected def invoke(method: Method, args: List[Any]): Option[Any] = {
-    debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
-
-    try {
-      val result = method.invoke(model, args.map(_.asInstanceOf[AnyRef]): _*)
-
-      result match {
-        case Some(o) => if (isPrimitiveType(o)) Some(o) else Some(result)
-        case None => Some("")
-        case _ => Some(result)
-      }
-    } catch {
-      case e: java.lang.IllegalArgumentException => None
-    }
-  }
-
-
-
-  /**
-   * Returns a map containing the methods of the class - the reflection calls to generate this map
-   * have been memoized so this should be performant. The method uses a read-write lock to ensure thread-safe
-   * access to the map.
-   *
-   * @param clazz
-   * @return
-   */
-  protected def getMethods(clazz: Class[_]): Map[String, Method] = {
-     clazz.getMethods.map(m => (m.getName + m.getParameterTypes.length, m)).toMap
-  }
-
-  protected def isPrimitiveType(obj: Any) = obj.isInstanceOf[Int] || obj.isInstanceOf[Long] || obj.isInstanceOf[Float] ||
-    obj.isInstanceOf[BigDecimal] || obj.isInstanceOf[Double] || obj.isInstanceOf[String]
+object VoidContext extends Context[Any] {
+  val binding = VoidBinding[Any]
+  val parent = VoidContext
+  val isRoot = false
+  val isVoid = true
+  override def asOption = None
+  override def toString = "Void"
+  def apply[T] = this.asInstanceOf[Context[T]]
 }

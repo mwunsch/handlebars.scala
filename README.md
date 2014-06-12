@@ -26,7 +26,7 @@ And an arbitrary Scala object:
       val hometown = "Somewhere, TX"
       val kids = Seq(Map(
         "name" -> "Jimmy",
-        "age -> "12"
+        "age" -> "12"
       ), Map(
         "name" -> "Sally",
         "age" -> "4"
@@ -34,6 +34,12 @@ And an arbitrary Scala object:
     }
 
 Pass those into Handlebars like so:
+
+    scala> import com.gilt.handlebars.binding.dynamic._
+    import com.gilt.handlebars.binding.dynamic._
+
+    scala> import com.gilt.handlebars.Handlebars
+    import com.gilt.handlebars.Handlebars
 
     scala> val t = Handlebars(template)
     t: com.gilt.handlebars.Handlebars = com.gilt.handlebars.Handlebars@496d864e
@@ -58,51 +64,110 @@ The example above demonstrates the `apply` method of a `Handlebars` instance, wh
 The signature for apply looks like this:
 
     def apply[T](context: T,
-          data: Map[String, Any] = Map.empty,
-          partials: Map[String, Handlebars] = Map.empty,
-          helpers: Map[String, Helper] = Map.empty): String
+          data: Map[String, Binding[T]] = Map.empty,
+          partials: Map[String, Handlebars[T]] = Map.empty,
+          helpers: Map[String, Helper[T]] = Map.empty): String
+
+## Bindings
+
+In order to facilitate multiple ways of interacting with data, Handlebars provides a data-binding facility. Handlebars ships with a default binding strategy, DynamicBinding, which uses Scala reflection to work with scala standard-library data structures and primitives. You can implement your own Binding strategies by implementing the following traits:
+
+- `com.gilt.handlebars.binding.FullBinding`
+- `com.gilt.handlebars.binding.BindingFactory`
+
+Provide the implicit BindingFactory which uses your new binding. If you need an example, see the source code in `binding/dynamic/DynamicBinding.scala`.
+
+### Binding Interface
+
++ `def get: T` - Retrieve the contents of the binding. Throws runtime exception if in the void.
++ `def getOrElse(default: => T): T` - Get the contents of the binding if full; else is VoidBinding return default
++ `def toOption: Option[T]` - Similar to the Option constructor, returns Some(value) where value is defined
++ `def render: String` - Returns a string representation for the object, returning empty string where value is not defined.
++ `def traverse(key: String, args: List[Binding[T]] = List.empty): Binding[T]` For dictionaries / objects, traverse into named key, returning a binding for the matched value, VoidBinding if key is not declared.
+
+    Important! Take note of the difference here:
+
+    ```scala
+    val binding = DynamicBinding(Map("a" -> null))
+    binding.traverse("a") // => DynamicBinding(null)
+    binding.traverse("b") // => VoidBinding
+    ```
+
++ `def isTruthy: Boolean` - Returns whether the bound value evaluate to truth in handlebars if expressions?
++ `def isCollection: Boolean` - Returns whether the bound value is an iterable (and not a dictionary)
++ `def isDictionary: Boolean` - Returns whether the bound value is a dictionary
++ `def isPrimitive` - Returns whether bound value is neither collection or dictionary
+
++ `def asOption: Option[Binding[T]]` - If value is defined, returns Some(this), else None
++ `def asCollection: Iterable[Binding[T]]` - Returns List of bindings if isCollection; else empty List
++ `def asDictionaryCollection: Iterable[(String, Binding[T])]` - returns List of key-value tuples if isDictionary; else empty list
+
+### `Unit` vs `null` vs `None` vs `VoidContext`
+
+In order to preserve the signal of "a value was defined in your model", vs., "you traversed outside the space covered by your model", bindings are monadic and capture whether they've a value from your model or not: a FullBinding if bound against a value from your model, a VoidBinding is you traversed outside the space of your model.
+
+### isDefined vs VoidContext
+
+isDefined is true if the bound value is within the space of the model, and it evaluates to some value other than null, Unit, or None. VoidContext is, naturally, never defined, and always returns isDefined as false.
+
+### Pattern matching value extraction
+
+You can extract the bound value by matching FullBinding, like so:
+
+```scala
+DynamicBinding(1) match {
+  case FullBinding(value) => value
+  case VoidBinding => Unit
+}
+```
 
 ## Helpers
+
 The trait for a helper looks like this:
 
-    trait Helper {
-      def apply(model: Any, options: HelperOptions): String
+    trait Helper[Any] {
+      def apply(binding: Binding[Any], options: HelperOptions[Any]): String
     }
 
-+ `model` the model of the context the helper was called from.
++ `binding` the binding for the model in the context from which the helper was called.
 + `options` provides helper functions to interact with the context and evaluate the body of the helper, if present.
 
 You can define a new helper by extending the trait above, or you can use companion obejct apply method to define one on the fly:
 
-    val fullNameHelper = Helper {
-      (model, options) =>
-        "%s %s".format(options.lookup("firstName"), options.lookup("lastName"))
+    val fullNameHelper = Helper[Any] {
+      (binding, options) =>
+        "%s %s".format(options.lookup("firstName").renderString, options.lookup("lastName").renderString)
     }
 
-If you know that the information you need is on `model`, you can do the same thing by accessing first and last name on the model directly. However, you will be responsible for casting model to the correct type.
+If you know that the information you need is on `binding`, you can do the same thing by accessing first and last name on the data directly. However, you will be responsible for casting model to the correct type.
 
-    val fullNameHelper = Helper {
-      (model, options) =>
-        val person = model.asInstanceOf[Person]
+    val fullNameHelper = Helper[Any] {
+      (binding, options) =>
+        val person = binding.get.asInstanceOf[Person]
         "%s %s".format(person.firstName, person.lastName)
     }
 
 ### HelperOptions
-The `HelperOption` object gives you the tools you need to get things done in your helper. The primary methods are:
 
-+ `def argument(index: Int): Option[Any]` Retrieve an argument from the list provided to the helper by its index.
-+ `def data(key: String): String` Retrieve data provided to the Handlebars template by its key.
-+ `def visit(model: Any): String` Evaluates the body of the helper using the provided model as a context.
-+ `def inverse(model: Any): String` Evaluate the inverse of body of the helper using the provided model as a context.
-+ `def lookup(path: String): Option[Any]` Look up a path in the the current context. The one in which the helper was called.
+The `HelperOption[T]` object gives you the tools you need to get things done in your helper. The primary methods are:
 
-## Caveats
++ `def argument(index: Int): Binding[T]` Retrieve an argument from the list provided to the helper by its index.
++ `def data(key: String): Binding[T]` Retrieve data provided to the Handlebars template by its key.
++ `def visit(binding: Binding[T]): String` Evaluates the body of the helper using a context with the provided binding.
++ `def inverse(binding: Binding[T]): String` Evaluate the inverse of body of the helper using the provided model as a context.
++ `def lookup(path: String): Binding[T]` Look up a value for a path in the the current context. The one in which the helper was called.
+
+## Caveats when using DynamicBinding
 
 **Implicit conversions will not work in a template**. Because Handlebars.scala makes heavy use of reflection. Bummer, I know. This leads me too...
 
 **Handlebars.scala makes heavy use of reflection**. This means that there could be unexpected behavior. Method overloading will behave in bizarre ways. There is likely a performance penalty. I'm not sophisticated enough in the arts of the JVM to know the implications of this.
 
 **Not everything from the JavaScript handlebars is supported**. See [NOTSUPPORTED](NOTSUPPORTED.md) for a list of the unsupported features. There are some things JavaScript can do that simply does not make sense to do in Scala.
+
+### Alternatives to DynamicBinding
+
+If you wish for more type-safety, you can consider binding to an AST such as that provided by a popular Json library. [handlebars-play-json](https://github.com/SpinGo/handlebars-play-json) provides a binding strategy that works directly with the PlayJson AST, and provides similar truthy / collection / traversal behavior as you would find using JavaScript values in handlebars-js.
 
 ## Thanks
 

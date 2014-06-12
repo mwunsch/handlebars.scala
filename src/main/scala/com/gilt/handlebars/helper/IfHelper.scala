@@ -1,19 +1,13 @@
 package com.gilt.handlebars.helper
 
-import com.gilt.handlebars.context.ClassCacheableContextFactory
 import com.gilt.handlebars.logging.Loggable
+import com.gilt.handlebars.binding.{ Binding, BindingFactory }
 
-
-class IfHelper extends Helper with ClassCacheableContextFactory with Loggable {
-  def apply(model: Any, options: HelperOptions): String = {
-    options.argument(0).map {
-      firstArg =>
-        val argAsContext = createRoot(firstArg)
-        if(argAsContext.truthValue) {
-          options.visit(model)
-        } else {
-          options.inverse(model)
-        }
-    }.getOrElse("")
+class IfHelper[T] extends Helper[T] with Loggable {
+  def apply(binding: Binding[T], options: HelperOptions[T])(implicit c: BindingFactory[T]): String = {
+    if (options.argument(0).isTruthy)
+      options.visit(binding)
+    else
+      options.inverse(binding)
   }
 }

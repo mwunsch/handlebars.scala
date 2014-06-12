@@ -145,8 +145,6 @@ close.string)
     "false" ^^^ { BooleanParameter(false) }
   }
 
-  val CONTENT = rep1(not(OPEN | CLOSE) ~> ".|\r|\n".r) ^^ { t => t.mkString("") }
-
   val EQUALS = "="
 
   val ID = """[^\s!"#%-,\.\/;->@\[-\^`\{-~]+""".r | ("[" ~> """[^\]]*""".r <~ "]") | ident
@@ -161,5 +159,7 @@ close.string)
 
   val CLOSE = delimiters._2
 
+  val ESCAPE = "\\"
 
+  val CONTENT = rep1((ESCAPE ~> (OPEN | CLOSE) | not(OPEN | CLOSE) ~> ".|\r|\n".r)) ^^ { t => t.mkString("") }
 }
