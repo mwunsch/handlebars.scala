@@ -102,17 +102,17 @@ Provide the implicit BindingFactory which uses your new binding. If you need an 
 + `def asCollection: Iterable[Binding[T]]` - Returns List of bindings if isCollection; else empty List
 + `def asDictionaryCollection: Iterable[(String, Binding[T])]` - returns List of key-value tuples if isDictionary; else empty list
 
-### `Unit` vs `null` vs `None` vs `VoidContext`
+### `Unit` vs `null` vs `None` vs `VoidBinding`
 
-In order to preserve the signal of "a value was defined in your model", vs., "you traversed outside the space covered by your model", bindings are monadic and capture whether they've a value from your model or not: a FullBinding if bound against a value from your model, a VoidBinding is you traversed outside the space of your model.
+In order to preserve the signal of "a value was defined in your model", vs., "you traversed outside the space covered by your model", bindings are monadic and capture whether they've a value from your model or not: a `FullBinding` if bound against a value from your model, a `VoidBinding` is you traversed outside the space of your model.
 
-### isDefined vs VoidContext
+If the model contained a `null`, `Unit`, or `None`
 
-isDefined is true if the bound value is within the space of the model, and it evaluates to some value other than null, Unit, or None. VoidContext is, naturally, never defined, and always returns isDefined as false.
+`isDefined` is `true` if the bound value is within the space of the model, and it evaluates to some value other than . `VoidBinding` is, naturally, never defined, and always returns `isDefined` as `false`.
 
 ### Pattern matching value extraction
 
-You can extract the bound value by matching FullBinding, like so:
+You can extract the bound value by matching `FullBinding`, like so:
 
 ```scala
 DynamicBinding(1) match {
