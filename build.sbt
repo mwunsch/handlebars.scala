@@ -1,4 +1,4 @@
-name := "handlebars"
+name := "handlebars-scala"
 
 organization := "com.gilt"
 
@@ -65,6 +65,13 @@ pomExtra := (
       <id>mwunsch</id>
       <name>Mark Wunsch</name>
       <url>http://markwunsch.com/</url>
+      <organization>Gilt</organization>
+      <organizationUrl>http://www.gilt.com</organizationUrl>
+    </developer>
+    <developer>
+      <id>chicks</id>
+      <name>Chris Hicks</name>
+      <url>http://tech.gilt.com/</url>
       <organization>Gilt</organization>
       <organizationUrl>http://www.gilt.com</organizationUrl>
     </developer>

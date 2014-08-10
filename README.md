@@ -6,7 +6,7 @@ This project began as an attempt to learn Scala and to experiment with Scala's [
 
 If you're using SBT you can add this line to your build.sbt file.
 
-    libraryDependencies += "com.gilt" %% "handlebars" % "1.0.0"
+    libraryDependencies += "com.gilt" %% "handlebars-scala" % "2.0.0"
     
 ## Usage
 
@@ -35,14 +35,14 @@ And an arbitrary Scala object:
 
 Pass those into Handlebars like so:
 
-    scala> import com.gilt.handlebars.binding.dynamic._
-    import com.gilt.handlebars.binding.dynamic._
+    scala> import com.gilt.handlebars.scala.scala.binding.dynamic._
+    import com.gilt.handlebars.scala.scala.binding.dynamic._
 
-    scala> import com.gilt.handlebars.Handlebars
-    import com.gilt.handlebars.Handlebars
+    scala> import com.gilt.handlebars.scala.Handlebars
+    import com.gilt.handlebars.scala.Handlebars
 
     scala> val t = Handlebars(template)
-    t: com.gilt.handlebars.Handlebars = com.gilt.handlebars.Handlebars@496d864e
+    t: com.gilt.handlebars.scala.Handlebars = com.gilt.handlebars.scala.Handlebars@496d864e
 
     scala> t(Guy)
     res0: String =
@@ -72,8 +72,8 @@ The signature for apply looks like this:
 
 In order to facilitate multiple ways of interacting with data, Handlebars provides a data-binding facility. Handlebars ships with a default binding strategy, DynamicBinding, which uses Scala reflection to work with scala standard-library data structures and primitives. You can implement your own Binding strategies by implementing the following traits:
 
-- `com.gilt.handlebars.binding.FullBinding`
-- `com.gilt.handlebars.binding.BindingFactory`
+- `com.gilt.handlebars.scala.binding.FullBinding`
+- `com.gilt.handlebars.scala.binding.BindingFactory`
 
 Provide the implicit BindingFactory which uses your new binding. If you need an example, see the source code in `binding/dynamic/DynamicBinding.scala`.
 

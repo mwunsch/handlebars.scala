@@ -1,2 +1,2 @@
 
-version in ThisBuild := "1.1.0-spingo"
+version in ThisBuild := "2.0.0-SNAPSHOT"
