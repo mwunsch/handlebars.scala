@@ -1,0 +1,8 @@
+Version: 0.0.26
+Average: 1.273740 ms +/- 0.963610 ms
+Total elapsed = 11154 ms (avg = 0.223080 ms)
+-------------------------------------------
+Version: 2.0.0
+Date: Sat Aug 23 10:18:41 EDT 2014
+Average: 3.994940 ms +/- 4.528064 ms
+Total elapsed = 24997 ms (avg = 0.499940 ms)
