@@ -1,7 +1,7 @@
 package com.gilt.handlebars.scala.binding
 
 trait Binding[T] {
-  val isDefined: Boolean
+  def isDefined: Boolean
   def get: T
   def getOrElse(default: => T): T
   def render: String
@@ -19,39 +19,35 @@ trait Binding[T] {
 
 object Binding {
   def mapTraverse[T](path: Seq[String], bindings: Map[String, Binding[T]]) = {
-    def simpleTraverse(p: Seq[String], binding: Binding[T]): Binding[T] = {
-      p match {
-        case Nil => binding
-        case head :: tail => simpleTraverse(tail, binding.traverse(head))
-      }
-    }
 
-    val seed = bindings.get(path.head) getOrElse { VoidBinding[T] }
+    @scala.annotation.tailrec
+    def simpleTraverse(p: Seq[String], binding: Binding[T]): Binding[T] =
+      if (p.isEmpty) binding else simpleTraverse(p.tail, binding.traverse(p.head))
+
+    def seed = bindings.getOrElse(path.head, VoidBinding[T])
     simpleTraverse(path.tail, seed)
   }
 }
 
 trait FullBinding[T] extends Binding[T] {
-  protected val data: T
-  protected val factory: BindingFactory[T]
-  if (data.isInstanceOf[Binding[_]]) {
-    throw new Exception("Bug! You tried to wrap a binding with a binding. Don't do that!")
-  }
+  protected def data: T
+  protected def factory: BindingFactory[T]
+
   def get = data
   def getOrElse(default: => T) = data
 
-  override def toString = s"FullBinding(${data})"
+  override def toString = s"FullBinding($data)"
 
   protected def collectionToIterable: Iterable[T]
   protected def dictionaryToIterable: Iterable[(String, T)]
 
-  lazy val asCollection =
+  def asCollection =
     if (isCollection)
       collectionToIterable.map(factory(_))
     else
       Seq()
 
-  lazy val asDictionaryCollection =
+  def asDictionaryCollection =
     if (isDictionary)
       dictionaryToIterable map { case (k,v) => (k, factory(v)) }
     else
@@ -63,21 +59,22 @@ trait FullBinding[T] extends Binding[T] {
       false
   }
 }
+
 object FullBinding {
   def unapply[T](v: FullBinding[T]) = Some(v.get)
 }
 
 trait VoidBinding[T] extends Binding[T]  {
-  val isDefined = false
-  val render = ""
+  def isDefined = false
+  def render = ""
   def traverse(key: String, args: Seq[Binding[T]] = Seq()) = this
-  lazy val asCollection = Seq()
+  def asCollection = Nil
   def get = throw new RuntimeException("Tried to get value from the void")
   def getOrElse(default: => T) = default
-  val isCollection = false
-  val asDictionaryCollection = Seq()
-  val isDictionary = false
-  val isTruthy = false
+  def isCollection = false
+  def asDictionaryCollection = Seq()
+  def isDictionary = false
+  def isTruthy = false
   override def toString = "VoidBinding"
 }
 

@@ -1,9 +1,9 @@
 package com.gilt.handlebars.scala.visitor
 
 import com.gilt.handlebars.scala.Handlebars
-import com.gilt.handlebars.scala.binding.{Binding, BindingFactory}
+import com.gilt.handlebars.scala.binding.{ Binding, BindingFactory }
 import com.gilt.handlebars.scala.context.Context
-import com.gilt.handlebars.scala.helper.{Helper, HelperOptionsBuilder}
+import com.gilt.handlebars.scala.helper.{ Helper, HelperOptionsBuilder }
 import com.gilt.handlebars.scala.logging.Loggable
 import com.gilt.handlebars.scala.parser._
 
@@ -11,22 +11,49 @@ object DefaultVisitor {
   def apply[T](base: Context[T], partials: Map[String, Handlebars[T]], helpers: Map[String, Helper[T]], data: Map[String, Binding[T]])(implicit bindingFactory: BindingFactory[T]) = {
     new DefaultVisitor(base, partials, helpers, data)
   }
+
+  private val escChars = "<>\"&"
+  private val escStrings = List("&lt;", "&gt;", "&quot;", "&amp;")
+  def escape(in: String): String = if (in.isEmpty) "" else {
+    var r = -1
+    var pos = 0
+    val buf = new StringBuilder
+
+    def repl(idx: Int): Unit = {
+      if (r < pos) buf.append(in.substring(r + 1, pos)) // accumulated
+      buf.append(escStrings(idx))
+      r = pos
+    }
+
+    while (pos < in.length) {
+      val idx = escChars.indexOf(in.charAt(pos))
+      if (idx >= 0) repl(idx)
+      pos += 1
+    }
+    buf.append(in.substring(r + 1, pos))
+
+    buf.toString()
+  }
 }
 
-class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]], helpers: Map[String, Helper[T]], data: Map[String, Binding[T]])(implicit val contextFactory: BindingFactory[T]) extends Visitor with Loggable  {
+class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]], helpers: Map[String, Helper[T]], data: Map[String, Binding[T]])(implicit val contextFactory: BindingFactory[T]) extends Visitor with Loggable {
   def visit(node: Node): String = {
     node match {
-      case c:Content => visit(c)
-      case c:Comment => visit(c)
-      case p:Program => visit(p)
-      case mustache:Mustache => visit(mustache)
-      case block:Block => visit(block)
-      case partial:Partial => visit(partial)
+      case c: Content => visit(c)
+      case c: Comment => visit(c)
+      case p: Program => visit(p)
+      case mustache: Mustache => visit(mustache)
+      case block: Block => visit(block)
+      case partial: Partial => visit(partial)
       case n => n.toString
     }
   }
 
-  def visit(program: Program): String = program.statements.map(visit).mkString
+  def visit(program: Program): String = {
+  val buf = new StringBuilder
+    program.statements.foreach { s => buf.append(visit(s)) }
+    buf.toString()
+  }
 
   def visit(content: Content): String = content.value
 
@@ -35,10 +62,10 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
   def visit(mustache: Mustache): String = {
     // I. There is no hash present on this {{mustache}}
 
-    lazy val paramsList = valueNodesToBindings(mustache.params).toSeq
+    lazy val paramsList = valueNodesToBindings(mustache.params).toList
     lazy val paramsMap = valueHashToBindingMap(mustache.hash)
 
-    if(mustache.hash.value.isEmpty) {
+    if (mustache.hash.value.isEmpty) {
       // 1. Check if path refers to a helper
       val value = helpers.get(mustache.path.string).map {
         callHelper(_, mustache, paramsList)
@@ -50,7 +77,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
         data.get(mustache.path.string).map(_.render)
       }.getOrElse {
         // 4. Could not find path in context, helpers or data.
-        warn("Could not find path or helper: %s, context: %s".format(mustache.path, context))
+        warn(s"Could not find path or helper: ${mustache.path}, context: $context")
         ""
       }
 
@@ -63,7 +90,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
   }
 
   def visit(block: Block): String = {
-    lazy val paramsList = valueNodesToBindings(block.mustache.params).toSeq
+    lazy val paramsList = valueNodesToBindings(block.mustache.params).toList
     lazy val paramsMap = valueHashToBindingMap(block.mustache.hash)
 
     // I. There is no hash present on this block
@@ -85,14 +112,14 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
     } else {
       // II. There is a hash on this block. Start over with the hash information added to 'data'. All of the
       //     data in the hash will be accessible to any child nodes of this block.
-      val blockWithoutHash = block.copy(mustache = block.mustache.copy(hash = HashNode(Map.empty)))
+      def blockWithoutHash = block.copy(mustache = block.mustache.copy(hash = HashNode(Map.empty)))
       new DefaultVisitor(context, partials, helpers, data ++ paramsMap).visit(blockWithoutHash)
     }
   }
 
   def visit(partial: Partial): String = {
     val partialName = (partial.name.value match {
-      case i:IdentifierNode => i.string
+      case i: IdentifierNode => i.string
       case o => o.value.toString
     }).replace("/", ".")
 
@@ -100,20 +127,20 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
     partials.get(partialName).map {
       _(partialContext.binding, data, partials, helpers) // TODO - partial rendering should receive a context
     }.getOrElse {
-      warn("Could not find partial: %s".format(partialName))
+      warn(s"Could not find partial: $partialName")
       ""
     }
   }
 
   protected def valueNodesToBindings(nodes: Iterable[ValueNode]): Iterable[Binding[T]] = {
     nodes.map {
-      case p:ParameterNode =>
+      case p: ParameterNode =>
         contextFactory.bindPrimitiveDynamic(p.value)
-      case i:IdentifierNode => {
+      case i: IdentifierNode => {
         val value = context.lookup(i).binding.asOption getOrElse {
           Binding.mapTraverse(i.value, data)
         }
-        if (! value.isDefined) warn(s"Could not lookup path ${i.value} in ${nodes}")
+        if (!value.isDefined) warn(s"Could not lookup path ${i.value} in $nodes")
         value
       }
       case other =>
@@ -121,7 +148,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
     }
   }
   protected def valueHashToBindingMap(node: HashNode): Map[String, Binding[T]] = {
-    val bindings = valueNodesToBindings(node.value.values)
+    def bindings = valueNodesToBindings(node.value.values)
     Map(node.value.keys.zip(bindings).toSeq: _*)
   }
 
@@ -129,7 +156,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
     if (unescaped) {
       value
     } else {
-      scala.xml.Utility.escape(value)
+      DefaultVisitor.escape(value)
     }
   }
 
@@ -144,7 +171,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
   }
 
   protected def callHelper(helper: Helper[T], program: Node, params: Seq[Binding[T]]): String = {
-    val optionsBuilder = new HelperOptionsBuilder[T](context, partials, helpers, data, program, params)
+    def optionsBuilder = new HelperOptionsBuilder[T](context, partials, helpers, data, program, params)
     helper.apply(context.binding, optionsBuilder.build)
   }
 }
