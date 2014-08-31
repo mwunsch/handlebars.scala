@@ -10,7 +10,6 @@ def scala211Dependencies(scalaVersion:String) = {
   CrossVersion.partialVersion(scalaVersion) match {
     case Some((2, scalaMajor)) if scalaMajor >= 11 =>
       Seq(
-        "org.scala-lang.modules" %% "scala-xml" % "1.0.2",
         "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1")
     case _ =>
       Seq()
@@ -18,7 +17,6 @@ def scala211Dependencies(scalaVersion:String) = {
 }
 
 libraryDependencies ++= Seq(
-  "com.googlecode.concurrentlinkedhashmap" % "concurrentlinkedhashmap-lru" % "1.4",
   "org.slf4j" % "slf4j-api" % "1.6.4",
   "org.slf4j" % "slf4j-simple" % "1.6.4",
   "org.scalatest" %% "scalatest" % "2.1.6" % "test"
