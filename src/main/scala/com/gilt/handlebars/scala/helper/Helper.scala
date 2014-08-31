@@ -28,7 +28,7 @@ import com.gilt.handlebars.scala.binding.BindingFactory
  *  }
  * }}}
  *
- * See [[com.gilt.handlebars.helper.HelperOptions]] for all of the options available.
+ * See [[com.gilt.handlebars.scala.helper.HelperOptions]] for all of the options available.
  *
  */
 trait Helper[T] {

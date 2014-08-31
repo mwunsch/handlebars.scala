@@ -44,7 +44,7 @@ object PartialHelper extends ProgramHelper {
    *
    * @param file file to scan for partials
    * @param touchedFiles running list of files that were scanned
-   * @return Map of partialName -> [[java.io.File]]
+   * @return Map of partialName -> java.io.File
    */
   def findAllPartials(file: File, touchedFiles: Seq[String] = Seq()): Map[String, File] = {
     if (file.exists() && !touchedFiles.contains(file.getAbsolutePath)) {
