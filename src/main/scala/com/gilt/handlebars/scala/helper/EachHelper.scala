@@ -1,10 +1,8 @@
 package com.gilt.handlebars.scala.helper
 
-import com.gilt.handlebars.scala.logging.Loggable
-import com.gilt.handlebars.scala.binding.Binding
-import com.gilt.handlebars.scala.binding.BindingFactory
+import com.gilt.handlebars.scala.binding.{Binding, BindingFactory}
 
-class EachHelper[T] extends Helper[T] with Loggable {
+class EachHelper[T] extends Helper[T] {
   def apply(binding: Binding[T], options: HelperOptions[T])(implicit contextFactory: BindingFactory[T]): String = {
     val arg0 = options.argument(0)
     if (arg0.isDictionary)
@@ -24,7 +22,7 @@ class EachHelper[T] extends Helper[T] with Loggable {
       }.mkString
 
     else {
-      warn("Could not iterate over argument for {{#each}}")
+//      warn("Could not iterate over argument for {{#each}}")
       ""
     }
   }

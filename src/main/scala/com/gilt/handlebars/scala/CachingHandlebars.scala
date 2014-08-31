@@ -26,7 +26,7 @@ object CachingHandlebars {
 
     parseResult.map {
       program =>
-        CachingHandlebarsImpl(HandlebarsGrammar(template).get, partials, helpers, sourceFile)
+        CachingHandlebarsImpl(program, partials, helpers, sourceFile)
     }.getOrElse(sys.error("Could not parse template:\n\n%s".format(parseResult.toString)))
   }
 

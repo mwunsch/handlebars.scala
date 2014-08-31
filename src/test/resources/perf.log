@@ -6,3 +6,7 @@ Version: 2.0.0
 Date: Sat Aug 23 10:18:41 EDT 2014
 Average: 3.994940 ms +/- 4.528064 ms
 Total elapsed = 24997 ms (avg = 0.499940 ms)
+-------------------------------------------
+Date: Sat Aug 30 22:33:50 EDT 2014
+Average: 1.383620 ms +/- 1.177983 ms
+Total elapsed = 9582 ms (avg = 0.191640 ms)

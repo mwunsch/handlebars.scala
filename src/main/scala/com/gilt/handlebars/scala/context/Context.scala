@@ -1,7 +1,6 @@
 package com.gilt.handlebars.scala.context
 
 import com.gilt.handlebars.scala.binding.{Binding, VoidBinding}
-import com.gilt.handlebars.scala.logging.Loggable
 import com.gilt.handlebars.scala.parser.IdentifierNode
 
 object ParentIdentifier {
@@ -31,7 +30,7 @@ class RootContext[T](val binding: Binding[T]) extends Context[T] {
   override def toString = "Root context: binding[%s]".format(binding)
 }
 
-trait Context[T] extends Loggable {
+trait Context[T] {
   val isRoot: Boolean
   val isVoid: Boolean
   val binding: Binding[T]

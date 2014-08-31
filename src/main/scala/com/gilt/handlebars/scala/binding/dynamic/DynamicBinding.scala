@@ -3,7 +3,6 @@ package com.gilt.handlebars.scala.binding.dynamic
 import java.lang.reflect.Method
 
 import com.gilt.handlebars.scala.binding.{Binding, BindingFactory, FullBinding, VoidBinding}
-import com.gilt.handlebars.scala.logging.Loggable
 import com.googlecode.concurrentlinkedhashmap.{ConcurrentLinkedHashMap, Weigher}
 
 class MapWeigher extends Weigher[Map[_, _]] {
@@ -26,7 +25,7 @@ object DynamicBindingCache {
   }
 }
 
-class DynamicBinding(val data: Any) extends FullBinding[Any] with Loggable {
+class DynamicBinding(val data: Any) extends FullBinding[Any] {
   import com.gilt.handlebars.scala.binding.dynamic.DynamicBindingCache.getMethods
   protected val factory = DynamicBinding
   lazy val render = if (isTruthy) data.toString else ""
@@ -65,7 +64,7 @@ class DynamicBinding(val data: Any) extends FullBinding[Any] with Loggable {
   }
 
   protected def invoke(method: Method, args: List[Binding[Any]]): Binding[Any] = {
-    debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
+//    debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
 
     try
       new DynamicBinding(method.invoke(data, args.map(_.get.asInstanceOf[AnyRef]): _*))

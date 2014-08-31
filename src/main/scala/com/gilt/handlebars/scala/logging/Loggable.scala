@@ -4,10 +4,12 @@ package com.gilt.handlebars.scala.logging
  * User: chicks
  * Date: 5/30/13
  */
+
 import org.slf4j.LoggerFactory
 
+
 trait Loggable {
-  private val logger = LoggerFactory.getLogger(getClass)
+  lazy val logger = LoggerFactory.getLogger(getClass)
 
   def debug(message: String, t: Any*) = {
     if (logger.isDebugEnabled) {

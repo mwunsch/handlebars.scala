@@ -4,7 +4,6 @@ import java.io.File
 
 import com.gilt.handlebars.scala.binding.BindingFactory
 import com.gilt.handlebars.scala.helper.Helper
-import com.gilt.handlebars.scala.logging.Loggable
 import com.gilt.handlebars.scala.parser.{Program, ProgramHelper}
 import com.gilt.handlebars.scala.partial.PartialHelper
 
@@ -32,7 +31,7 @@ case class DefaultHandlebarsBuilder[T](
   def build: Handlebars[T] = new HandlebarsImpl(program, partials, helpers ++ Helper.defaultHelpers.asInstanceOf[Map[String,Helper[T]]])
 }
 
-object DefaultHandlebarsBuilder extends ProgramHelper with Loggable {
+object DefaultHandlebarsBuilder extends ProgramHelper {
   def apply[T](template: String)(implicit contextFactory: BindingFactory[T]): DefaultHandlebarsBuilder[T] = {
     DefaultHandlebarsBuilder(programFromString(template))
   }
