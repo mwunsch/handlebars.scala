@@ -14,12 +14,12 @@ trait Binding[T] {
   def asOption: Option[Binding[T]] = if (isDefined) Some(this) else None
   def asCollection: Iterable[Binding[T]]
   def asDictionaryCollection: Iterable[(String, Binding[T])]
-  def traverse(key: String, args: List[Binding[T]] = List.empty): Binding[T] // If traversing a function-like, args are optionally provided
+  def traverse(key: String, args: Seq[Binding[T]] = Seq()): Binding[T] // If traversing a function-like, args are optionally provided
 }
 
 object Binding {
-  def mapTraverse[T](path: List[String], bindings: Map[String, Binding[T]]) = {
-    def simpleTraverse(p: List[String], binding: Binding[T]): Binding[T] = {
+  def mapTraverse[T](path: Seq[String], bindings: Map[String, Binding[T]]) = {
+    def simpleTraverse(p: Seq[String], binding: Binding[T]): Binding[T] = {
       p match {
         case Nil => binding
         case head :: tail => simpleTraverse(tail, binding.traverse(head))
@@ -70,7 +70,7 @@ object FullBinding {
 trait VoidBinding[T] extends Binding[T]  {
   val isDefined = false
   val render = ""
-  def traverse(key: String, args: List[Binding[T]] = List.empty) = this
+  def traverse(key: String, args: Seq[Binding[T]] = Seq()) = this
   lazy val asCollection = Seq()
   def get = throw new RuntimeException("Tried to get value from the void")
   def getOrElse(default: => T) = default

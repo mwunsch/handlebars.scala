@@ -40,7 +40,7 @@ class DynamicBinding(val data: Any) extends FullBinding[Any] {
     case /* UndefinedValue |*/ None | Unit | null => false
     case _ => true
   }
-  def traverse(key: String, args: List[Binding[Any]] = List.empty): Binding[Any] =
+  def traverse(key: String, args: Seq[Binding[Any]] = Seq()): Binding[Any] =
     data match {
       case Some(m) => (new DynamicBinding(m)).traverse(key, args)
       case map:Map[_, _] =>
@@ -56,14 +56,14 @@ class DynamicBinding(val data: Any) extends FullBinding[Any] {
   protected def collectionToIterable = data.asInstanceOf[Iterable[Any]]
   protected def dictionaryToIterable = data.asInstanceOf[Map[Any, Any]].toIterable map { case (k, v) => (k.toString, v) }
 
-  protected def invoke(methodName: String, args: List[Binding[Any]] = Nil): Binding[Any] = {
+  protected def invoke(methodName: String, args: Seq[Binding[Any]] = Nil): Binding[Any] = {
     getMethods(data.getClass).
       get(methodName + args.length).
       map(invoke(_, args)).
       getOrElse(VoidBinding[Any])
   }
 
-  protected def invoke(method: Method, args: List[Binding[Any]]): Binding[Any] = {
+  protected def invoke(method: Method, args: Seq[Binding[Any]]): Binding[Any] = {
 //    debug("Invoking method: '%s' with arguments: [%s].".format(method.getName, args.mkString(",")))
 
     try

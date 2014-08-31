@@ -23,13 +23,13 @@ object PartialHelper extends ProgramHelper {
    * @param node usually a Program node result of HandlebarsGrammar
    * @return List of Partial nodes within node
    */
-  def filterPartials(node: Node): List[Partial] = {
+  def filterPartials(node: Node): Seq[Partial] = {
     node match {
-      case n:Partial => List(n)
-      case n:Block => filterPartials(n.mustache) ++ filterPartials(n.program) ++ n.inverse.map(filterPartials(_)).getOrElse(List.empty)
+      case n:Partial => Seq(n)
+      case n:Block => filterPartials(n.mustache) ++ filterPartials(n.program) ++ n.inverse.map(filterPartials(_)).getOrElse(Seq())
       case n:Mustache => filterPartials(n.path)
-      case n:Program => n.statements.flatMap(filterPartials) ++ n.inverse.map(filterPartials(_)).getOrElse(List.empty)
-      case _ => List.empty
+      case n:Program => n.statements.flatMap(filterPartials) ++ n.inverse.map(filterPartials(_)).getOrElse(Seq())
+      case _ => Seq()
     }
   }
 
@@ -46,7 +46,7 @@ object PartialHelper extends ProgramHelper {
    * @param touchedFiles running list of files that were scanned
    * @return Map of partialName -> [[java.io.File]]
    */
-  def findAllPartials(file: File, touchedFiles: List[String] = List.empty): Map[String, File] = {
+  def findAllPartials(file: File, touchedFiles: Seq[String] = Seq()): Map[String, File] = {
     if (file.exists() && !touchedFiles.contains(file.getAbsolutePath)) {
       val contents = Source.fromFile(file).mkString
       val parseResult = HandlebarsGrammar(contents)

@@ -69,7 +69,7 @@ class HelperOptionsBuilder[T](context: Context[T],
                               helpers: Map[String, Helper[T]],
                               data: Map[String, Binding[T]],
                               program: Node,
-                              args: List[Binding[T]])(implicit contextFactory: BindingFactory[T]) extends Loggable {
+                              args: Seq[Binding[T]])(implicit contextFactory: BindingFactory[T]) extends Loggable {
 
   private val inverseNode: Option[Node] = program match {
     case p:Program => p.inverse
@@ -80,7 +80,7 @@ class HelperOptionsBuilder[T](context: Context[T],
   def build: HelperOptions[T] =
     new HelperOptionsImpl(args, data)
 
-  private class HelperOptionsImpl(args: List[Binding[T]],
+  private class HelperOptionsImpl(args: Seq[Binding[T]],
                                   val dataMap: Map[String, Binding[T]]) extends HelperOptions[T] {
 
     def argument(index: Int): Binding[T] = {
@@ -113,7 +113,7 @@ class HelperOptionsBuilder[T](context: Context[T],
 
     def lookup(path: String): Binding[T] = {
       HandlebarsGrammar.path(path).map { identifier =>
-        context.lookup(identifier, List.empty).binding
+        context.lookup(identifier, Seq()).binding
       }.getOrElse {
         warn("Could not parse path, %s, returning void binding".format(path))
         VoidBinding[T]

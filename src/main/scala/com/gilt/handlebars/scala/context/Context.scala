@@ -42,7 +42,7 @@ trait Context[T] {
 
   def notEmpty[A](fallback: Context[A]): Context[A] = if (isVoid) fallback else this.asInstanceOf[Context[A]]
 
-  def lookup(path: IdentifierNode, args: List[Binding[T]] = List.empty): Context[T] =
+  def lookup(path: IdentifierNode, args: Seq[Binding[T]] = Seq()): Context[T] =
     lookup(path.value, args)
 
 
@@ -70,7 +70,7 @@ trait Context[T] {
   // dictionaryFallbackFlag is work-around for a case in which a context is used to iterate a dictionary
   // It'd be preferable to not create a context for the dictionary (thus preventing the need to skip it), or
   // to capture signal somehow that the binding is being used that way
-  def lookup(path: List[String], args: List[Binding[T]], dictionaryFallbackFlag: Boolean): Context[T] = {
+  def lookup(path: Seq[String], args: Seq[Binding[T]], dictionaryFallbackFlag: Boolean): Context[T] = {
     path match {
       case Nil => this
       case _ if isVoid => this
@@ -87,7 +87,7 @@ trait Context[T] {
       }
     }
   }
-  def lookup(path: List[String], args: List[Binding[T]]): Context[T] = lookup(path, args, false)
+  def lookup(path: Seq[String], args: Seq[Binding[T]]): Context[T] = lookup(path, args, false)
 
   def childContext(binding: Binding[T]): Context[T] =
     new ChildContext[T](binding, this)

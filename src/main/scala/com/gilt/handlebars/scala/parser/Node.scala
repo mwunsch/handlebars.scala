@@ -9,16 +9,16 @@ trait ValueNode extends Node {
 abstract class ParameterNode extends ValueNode
 
 trait IdentifierNode extends ValueNode {
-  type T = List[String]
+  type T = Seq[String]
   val isSimple: Boolean
   def string = value.mkString(".")
 }
 
 
-case class Program(statements: List[Node], inverse: Option[Program] = None) extends Node
+case class Program(statements: Seq[Node], inverse: Option[Program] = None) extends Node
 
 case class Mustache(path: IdentifierNode,
-    params: List[ValueNode] = Nil,
+    params: Seq[ValueNode] = Nil,
     hash: HashNode = HashNode(Map.empty),
     unescaped: Boolean = false) extends Node {
   val eligibleHelper: Boolean = path.isSimple
@@ -37,7 +37,7 @@ case class HashNode(value: Map[String, ValueNode]) extends ValueNode {
   type T = Map[String, ValueNode]
 }
 
-case class Identifier(parts: List[String]) extends IdentifierNode {
+case class Identifier(parts: Seq[String]) extends IdentifierNode {
   val value = parts
   val isSimple: Boolean = parts.length == 1
 }

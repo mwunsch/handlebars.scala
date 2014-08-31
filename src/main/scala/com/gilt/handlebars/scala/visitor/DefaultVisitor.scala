@@ -35,7 +35,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
   def visit(mustache: Mustache): String = {
     // I. There is no hash present on this {{mustache}}
 
-    lazy val paramsList = valueNodesToBindings(mustache.params).toList
+    lazy val paramsList = valueNodesToBindings(mustache.params).toSeq
     lazy val paramsMap = valueHashToBindingMap(mustache.hash)
 
     if(mustache.hash.value.isEmpty) {
@@ -63,7 +63,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
   }
 
   def visit(block: Block): String = {
-    lazy val paramsList = valueNodesToBindings(block.mustache.params).toList
+    lazy val paramsList = valueNodesToBindings(block.mustache.params).toSeq
     lazy val paramsMap = valueHashToBindingMap(block.mustache.hash)
 
     // I. There is no hash present on this block
@@ -143,7 +143,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
     }
   }
 
-  protected def callHelper(helper: Helper[T], program: Node, params: List[Binding[T]]): String = {
+  protected def callHelper(helper: Helper[T], program: Node, params: Seq[Binding[T]]): String = {
     val optionsBuilder = new HelperOptionsBuilder[T](context, partials, helpers, data, program, params)
     helper.apply(context.binding, optionsBuilder.build)
   }
