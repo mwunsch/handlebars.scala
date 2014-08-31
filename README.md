@@ -35,8 +35,8 @@ And an arbitrary Scala object:
 
 Pass those into Handlebars like so:
 
-    scala> import com.gilt.handlebars.scala.scala.binding.dynamic._
-    import com.gilt.handlebars.scala.scala.binding.dynamic._
+    scala> import com.gilt.handlebars.scala.binding.dynamic._
+    import com.gilt.handlebars.scala.binding.dynamic._
 
     scala> import com.gilt.handlebars.scala.Handlebars
     import com.gilt.handlebars.scala.Handlebars
