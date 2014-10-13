@@ -45,6 +45,19 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       hbs(Goodbye(Iterable.empty, "world")) should equal("cruel world!")
     }
 
+    it("unless") {
+      case class Hello(goodbye: Any, world: String)
+      case class World(world: String)
+      val template = "{{#unless goodbye}}HELLO {{else}}GOODBYE cruel {{/unless}}{{world}}!"
+      val hbs = Handlebars(template)
+
+      hbs(Hello(true, "world")) should equal("GOODBYE cruel world!")
+      hbs(Hello("dummy", "world")) should equal("GOODBYE cruel world!")
+      hbs(Hello(false, "world")) should equal("HELLO world!")
+      hbs(Hello(Iterable("foo"), "world")) should equal("GOODBYE cruel world!")
+      hbs(Hello(Iterable.empty, "world")) should equal("HELLO world!")
+    }
+
     it("each") {
       case class Text(text: String)
       case class Ctx(goodbyes: Iterable[Text], world: String)
