@@ -54,6 +54,8 @@ trait HelperOptions[T] {
    */
   def inverse(binding: Binding[T], extraData: Map[String, Binding[T]]): String
 
+  def hasInverse: Boolean
+
   /**
    * Look up a path in the the current context. The one in which the helper was called.
    * @param path The path to lookup in the context. e.g., ../name
@@ -110,6 +112,8 @@ class HelperOptionsBuilder[T](context: Context[T],
         ""
       }
     }
+
+    val hasInverse = inverseNode.isDefined
 
     def lookup(path: String): Binding[T] = {
       HandlebarsGrammar.path(path).map { identifier =>
