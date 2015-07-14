@@ -9,6 +9,11 @@ def scala211Dependencies(scalaVersion:String) = {
 }
 
 val updateVersion = taskKey[Unit]("Updates version in README")
+libraryDependencies ++= Seq(
+  "org.slf4j" % "slf4j-api" % "1.6.4",
+  "org.slf4j" % "slf4j-simple" % "1.6.4" % "test",
+  "org.scalatest" %% "scalatest" % "2.1.6" % "test"
+) ++ scala211Dependencies(scalaVersion.value)
 
 val commonSettings = Seq(
   organization := "com.gilt",
