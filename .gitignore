@@ -7,3 +7,4 @@ target/
 .idea_modules/
 lib
 .DS_Store
+.ensime*

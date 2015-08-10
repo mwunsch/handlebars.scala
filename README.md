@@ -165,9 +165,15 @@ The `HelperOption[T]` object gives you the tools you need to get things done in 
 
 **Not everything from the JavaScript handlebars is supported**. See [NOTSUPPORTED](NOTSUPPORTED.md) for a list of the unsupported features. There are some things JavaScript can do that simply does not make sense to do in Scala.
 
-### Alternatives to DynamicBinding
+### Play-Json integration
 
-If you wish for more type-safety, you can consider binding to an AST such as that provided by a popular Json library. [handlebars-play-json](https://github.com/SpinGo/handlebars-play-json) provides a binding strategy that works directly with the PlayJson AST, and provides similar truthy / collection / traversal behavior as you would find using JavaScript values in handlebars-js.
+If you wish for more type-safety, Handlebars-scala comes with integration for play-json. Using PlayJson AST data structures with handlebars provides identical truthy / collection / traversal behavior that you would find using JavaScript values in handlebars-js.
+
+To use:
+
+    libraryDependencies += "com.gilt" %% "handlebars-scala-play-json" % "2.0.1"
+
+[Example / usage](addons/play-json/README.md)
 
 ## Thanks
 
