@@ -121,7 +121,8 @@ lazy val `all` = (project in file("./addons/all")).
   settings(commonSettings: _*).
   settings(
     updateVersion := {},
-    publish := {}
+    publish := {},
+    test := {}
   ).
   dependsOn(core, `play-json`).
   aggregate(core, `play-json`)
