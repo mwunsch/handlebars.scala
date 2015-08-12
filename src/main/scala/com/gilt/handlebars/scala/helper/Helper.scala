@@ -51,6 +51,7 @@ object Helper {
   def defaultHelpers[T]: Map[String, Helper[T]] = Map (
     "with" -> new WithHelper[T],
     "if" -> new IfHelper[T],
+    "unless" -> new IfHelper[T](inverse = true),
     "each" -> new EachHelper[T],
     "log" -> new LogHelper[T]
   )
