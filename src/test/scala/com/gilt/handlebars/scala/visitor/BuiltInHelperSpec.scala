@@ -395,6 +395,42 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       builder.build(Ctx("goodbye", "world")) should equal("GOODBYE cruel WORLD goodbye")
     }
 
+    it("helpers can take a nested helper") {
+      case class Ctx(worldKey: String)
+      val template = "goodbye {{cruel ( world ) }}"
+      val helpers = Map (
+        "cruel" -> Helper[Any] {
+          (context, options) =>
+            "cruel %s".format(options.argument(0).get.toString.toUpperCase)
+        },
+
+        "world" -> Helper[Any] {
+          (context, options) =>
+            options.lookup("worldKey").render + "!"
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+      builder.build(Ctx("world")) should equal("goodbye cruel WORLD!")
+    }
+
+    it("helpers can take a nested helper within nested helper") {
+      case class Ctx(worldKey: String)
+      val template = "goodbye {{cruel ( cruel (world) ) }}"
+      val helpers = Map (
+        "cruel" -> Helper[Any] {
+          (context, options) =>
+            "cruel %s".format(options.argument(0).get.toString.toUpperCase)
+        },
+
+        "world" -> Helper[Any] {
+          (context, options) =>
+            options.lookup("worldKey").render + "!"
+        }
+      )
+      val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+      builder.build(Ctx("world")) should equal("goodbye cruel CRUEL WORLD!")
+    }
+
     it("helpers can take an optional hash") {
       val template = "{{goodbye cruel=\"CRUEL\" world=\"WORLD\" times=12}}"
       val helpers = Map (

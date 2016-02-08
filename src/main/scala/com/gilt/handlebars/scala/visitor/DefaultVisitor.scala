@@ -62,7 +62,11 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
   def visit(mustache: Mustache): String = {
     // I. There is no hash present on this {{mustache}}
 
-    lazy val paramsList = valueNodesToBindings(mustache.params).toList
+    lazy val paramsList = mustache.params.map{
+      case Left(n: Mustache) => contextFactory.bindPrimitive(visit(n))
+      case Right(valueNode) => valueNodeToBindings(valueNode)
+    }.toList
+
     lazy val paramsMap = valueHashToBindingMap(mustache.hash)
 
     if (mustache.hash.value.isEmpty) {
@@ -90,7 +94,11 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
   }
 
   def visit(block: Block): String = {
-    lazy val paramsList = valueNodesToBindings(block.mustache.params).toList
+    lazy val paramsList = block.mustache.params.map{
+      case Left(n: Mustache) => contextFactory.bindPrimitive(visit(n))
+      case Right(valueNode) => valueNodeToBindings(valueNode)
+    }.toList
+
     lazy val paramsMap = valueHashToBindingMap(block.mustache.hash)
 
     // I. There is no hash present on this block
@@ -133,14 +141,17 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
   }
 
   protected def valueNodesToBindings(nodes: Iterable[ValueNode]): Iterable[Binding[T]] = {
-    nodes.map {
+    nodes.map (valueNodeToBindings)
+  }
+  protected def valueNodeToBindings(node: ValueNode): Binding[T] = {
+    node match {
       case p: ParameterNode =>
         contextFactory.bindPrimitiveDynamic(p.value)
       case i: IdentifierNode => {
         val value = context.lookup(i).binding.asOption getOrElse {
           Binding.mapTraverse(i.value, data)
         }
-        if (!value.isDefined) warn(s"Could not lookup path ${i.value} in $nodes")
+        if (!value.isDefined) warn(s"Could not lookup path ${i.value} in $node")
         value
       }
       case other =>
