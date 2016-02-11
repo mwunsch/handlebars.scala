@@ -6,7 +6,7 @@ Play-JSON data bindings for `handlebars.scala`. Requires `play-json` `2.4.x`.
 # Installation:
 
 ```scala
-libraryDependencies += "com.gilt" %% "handlebars-scala-play-json" % "2.0.1"
+libraryDependencies += "com.gilt" %% "handlebars-scala-play-json" % "2.1.1"
 ```
 
 # Example:

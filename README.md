@@ -6,8 +6,8 @@ This project began as an attempt to learn Scala and to experiment with Scala's [
 
 If you're using SBT you can add this line to your build.sbt file.
 
-    libraryDependencies += "com.gilt" %% "handlebars-scala" % "2.0.1"
-    
+    libraryDependencies += "com.gilt" %% "handlebars-scala" % "2.1.1"
+
 ## Usage
 
 Given a template:
@@ -171,7 +171,7 @@ If you wish for more type-safety, Handlebars-scala comes with integration for pl
 
 To use:
 
-    libraryDependencies += "com.gilt" %% "handlebars-scala-play-json" % "2.0.1"
+    libraryDependencies += "com.gilt" %% "handlebars-scala-play-json" % "2.1.1"
 
 [Example / usage](addons/play-json/README.md)
 
