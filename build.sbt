@@ -113,6 +113,15 @@ lazy val `play-json` = (project in file("./addons/play-json/")).
     libraryDependencies += "com.typesafe.play" %% "play-json" % "2.4.2").
   dependsOn(core)
 
+lazy val `lift-json` =  (project in file("./addons/lift-json/")).
+  settings(commonSettings: _*).
+  settings(
+    name := "handlebars-scala-play-json",
+    libraryDependencies += "net.liftweb" %% "lift-json" % "2.6").
+  dependsOn(core)
+
+
+
 lazy val `all` = (project in file("./addons/all")).
   settings(commonSettings: _*).
   settings(
