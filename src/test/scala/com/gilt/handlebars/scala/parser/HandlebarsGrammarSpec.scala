@@ -93,7 +93,7 @@ class HandlebarsGrammarSpec extends FunSpec with Matchers with ParserMatchers {
       parsers("{{foo bar}}") should succeedWithResult {
         Program(List(
           Mustache(
-            Identifier(List("foo")), List(Identifier(List("bar")))
+            Identifier(List("foo")), List(Right(Identifier(List("bar"))))
           )
         ))
       }
@@ -104,7 +104,7 @@ class HandlebarsGrammarSpec extends FunSpec with Matchers with ParserMatchers {
         Program(List(
           Mustache(
             Identifier(List("foo")), List(
-              Identifier(List("bar")), StringParameter("baz")
+              Right(Identifier(List("bar"))), Right(StringParameter("baz"))
             )
           )
         ))
@@ -116,7 +116,7 @@ class HandlebarsGrammarSpec extends FunSpec with Matchers with ParserMatchers {
         Program(List(
           Mustache(
             Identifier(List("foo")), List(
-              IntegerParameter(1)
+              Right(IntegerParameter(1))
             )
           )
         ))
@@ -128,7 +128,7 @@ class HandlebarsGrammarSpec extends FunSpec with Matchers with ParserMatchers {
         Program(List(
           Mustache(
             Identifier(List("foo")), List(
-              BooleanParameter(true)
+              Right(BooleanParameter(true))
             )
           )
         ))
@@ -138,7 +138,7 @@ class HandlebarsGrammarSpec extends FunSpec with Matchers with ParserMatchers {
         Program(List(
           Mustache(
             Identifier(List("foo")), List(
-              BooleanParameter(false)
+              Right(BooleanParameter(false))
             )
           )
         ))
@@ -150,7 +150,24 @@ class HandlebarsGrammarSpec extends FunSpec with Matchers with ParserMatchers {
         Program(List(
           Mustache(
             Identifier(List("foo")), List(
-              DataNode(Identifier(List("bar")))
+              Right(DataNode(Identifier(List("bar"))))
+            )
+          )
+        ))
+      }
+    }
+
+
+    it("parses nested mustaches") {
+      parsers("{{foo (nestedFoo true)}}") should succeedWithResult {
+        Program(List(
+          Mustache(
+            Identifier(List("foo")), List(
+              Left(Mustache(
+                Identifier(List("nestedFoo")), List(
+                  Right(BooleanParameter(true))
+                )
+              ))
             )
           )
         ))

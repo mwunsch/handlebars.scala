@@ -18,7 +18,7 @@ trait IdentifierNode extends ValueNode {
 case class Program(statements: Seq[Node], inverse: Option[Program] = None) extends Node
 
 case class Mustache(path: IdentifierNode,
-    params: Seq[ValueNode] = Nil,
+    params: Seq[Either[Mustache, ValueNode]] = Nil,
     hash: HashNode = HashNode(Map.empty),
     unescaped: Boolean = false) extends Node {
   val eligibleHelper: Boolean = path.isSimple

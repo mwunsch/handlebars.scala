@@ -68,7 +68,7 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
     case (name ~ contextOpt) => Partial(name, contextOpt)
   }
 
-  def inMustache: Parser[(IdentifierNode, List[ValueNode], Option[HashNode])] = {
+  def inMustache: Parser[(IdentifierNode, List[Either[Mustache, ValueNode]], Option[HashNode])] = {
     path ~ params ~ hash ^^ {
       case (id ~ params ~ hash) => (id, params, Some(hash))
     } |
@@ -83,7 +83,7 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
     failure("Invalid Mustache")
   }
 
-  def params = rep1(whiteSpace ~> param)
+  def params = rep1(whiteSpace ~> paramOrNested)
 
   def hash = rep1(whiteSpace ~> hashSegment) ^^ {
     pairs:List[(String, ValueNode)] => HashNode(pairs.toMap)
@@ -100,6 +100,10 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
               BOOLEAN |
               path |
               dataName
+
+  def paramOrNested: Parser[Either[Mustache, ValueNode]] = param ^^(Right(_)) | nestedHelperParam ^^(Left(_))
+
+  def nestedHelperParam = "(" ~> (pad(inMustache)^^ { mustacheable(_) })  <~ ")"
 
   def dataName = "@" ~> not("." | "..") ~> simplePath ^^ { DataNode(_) }
 
@@ -123,7 +127,7 @@ close.string)
     mustacheable(_)
   }
 
-  def mustacheable(tuple: (IdentifierNode, List[ValueNode], Option[HashNode]),
+  def mustacheable(tuple: (IdentifierNode, List[Either[Mustache, ValueNode]], Option[HashNode]),
     unescape: Boolean = false): Mustache = {
       tuple match {
         case (id, params, Some(hash)) => Mustache(id, params, hash, unescape)
