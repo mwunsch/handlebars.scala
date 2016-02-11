@@ -68,49 +68,28 @@ val commonSettings = Seq(
 
   licenses := Seq("BSD-style" -> url("http://www.opensource.org/licenses/bsd-license.php")),
 
-  homepage := Some(url("https://github.com/mwunsch/handlebars.scala"))
-)
+  homepage := Some(url("https://github.com/mwunsch/handlebars.scala")),
 
-lazy val core = (project in file("./")).
-  settings(commonSettings: _*).
-  settings(
-    name := "handlebars-scala",
-
-    pomExtra := (
-      <scm>
-        <url>git@github.com:mwunsch/handlebars.scala.git</url>
-        <connection>scm:git:git@github.com:mwunsch/handlebars.scala.git</connection>
+  pomExtra := (
+    <scm>
+      <url>git@github.com:mwunsch/handlebars.scala.git</url>
+      <connection>scm:git:git@github.com:mwunsch/handlebars.scala.git</connection>
       </scm>
       <developers>
         <developer>
           <id>mwunsch</id>
           <name>Mark Wunsch</name>
           <url>http://markwunsch.com/</url>
-          <organization>Gilt</organization>
+            <organization>Gilt</organization>
           <organizationUrl>http://www.gilt.com</organizationUrl>
         </developer>
         <developer>
           <id>chicks</id>
           <name>Chris Hicks</name>
           <url>http://tech.gilt.com/</url>
-          <organization>Gilt</organization>
+            <organization>Gilt</organization>
           <organizationUrl>http://www.gilt.com</organizationUrl>
         </developer>
-      </developers>))
-
-lazy val `play-json` = (project in file("./addons/play-json/")).
-  settings(commonSettings: _*).
-  settings(
-    name := "handlebars-scala-play-json",
-
-    libraryDependencies += "com.typesafe.play" %% "play-json" % "2.4.2",
-
-    pomExtra := (
-      <scm>
-        <url>git@github.com:mwunsch/handlebars.scala.git</url>
-        <connection>scm:git:git@github.com:mwunsch/handlebars.scala.git</connection>
-      </scm>
-      <developers>
         <developer>
           <id>timcharper</id>
           <name>Tim Harper</name>
@@ -119,7 +98,19 @@ lazy val `play-json` = (project in file("./addons/play-json/")).
           <organizationUrl>http://www.foundationalsoftware.com</organizationUrl>
         </developer>
       </developers>
-    )).
+  )
+)
+
+lazy val core = (project in file("./")).
+  settings(commonSettings: _*).
+  settings(
+    name := "handlebars-scala")
+
+lazy val `play-json` = (project in file("./addons/play-json/")).
+  settings(commonSettings: _*).
+  settings(
+    name := "handlebars-scala-play-json",
+    libraryDependencies += "com.typesafe.play" %% "play-json" % "2.4.2").
   dependsOn(core)
 
 lazy val `all` = (project in file("./addons/all")).
