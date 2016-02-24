@@ -17,10 +17,16 @@ trait Handlebars[T] {
   def helpers: Map[String, Helper[T]]
 
   def apply(
-    context: Binding[T],
+    binding: Binding[T],
     data: Map[String, Binding[T]] = Map.empty[String, Binding[T]],
     partials: Map[String, Handlebars[T]] = Map.empty[String, Handlebars[T]],
     helpers: Map[String, Helper[T]] = Map.empty[String, Helper[T]])(implicit c: BindingFactory[T]): String
+
+  def c(
+    context: Context[T],
+    data: Map[String, Binding[T]],
+    partials: Map[String, Handlebars[T]],
+    helpers: Map[String, Helper[T]])(implicit c: BindingFactory[T]): String
 }
 
 class HandlebarsImpl[T](
@@ -37,6 +43,15 @@ class HandlebarsImpl[T](
     providedHelpers: Map[String, Helper[T]] = Map.empty[String, Helper[T]])(implicit c: BindingFactory[T]): String = {
 
     DefaultVisitor(Context(binding), PartialHelper.normalizePartialNames(partials ++ providedPartials), helpers ++ providedHelpers, data).visit(program)
+  }
+
+  override def c(
+    context: Context[T],
+    data: Map[String, Binding[T]],
+    providedPartials: Map[String, Handlebars[T]],
+    providedHelpers: Map[String, Helper[T]])(implicit c: BindingFactory[T]): String = {
+
+    DefaultVisitor(context, PartialHelper.normalizePartialNames(partials ++ providedPartials), helpers ++ providedHelpers, data).visit(program)
   }
 }
 
