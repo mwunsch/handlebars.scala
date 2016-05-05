@@ -24,7 +24,7 @@ val commonSettings = Seq(
 
   libraryDependencies ++= Seq(
     "org.slf4j" % "slf4j-api" % "1.6.4",
-    "org.slf4j" % "slf4j-simple" % "1.6.4",
+    "org.slf4j" % "slf4j-simple" % "1.6.4" % "test",
     "org.scalatest" %% "scalatest" % "2.2.4" % "test"
   ) ++ scala211Dependencies(scalaVersion.value),
 
