@@ -1,12 +1,13 @@
 package com.gilt.handlebars.scala.partial
 
 import java.io.File
+import java.nio.charset.CodingErrorAction
 
 import com.gilt.handlebars.scala.binding.BindingFactory
 import com.gilt.handlebars.scala.parser._
 import com.gilt.handlebars.scala.{Handlebars, HandlebarsImpl}
 
-import scala.io.Source
+import scala.io.{Codec, Source}
 
 /**
  * @author chicks
@@ -46,7 +47,7 @@ object PartialHelper extends ProgramHelper {
    * @param touchedFiles running list of files that were scanned
    * @return Map of partialName -> java.io.File
    */
-  def findAllPartials(file: File, touchedFiles: Seq[String] = Seq()): Map[String, File] = {
+  def findAllPartials(file: File, touchedFiles: Seq[String] = Seq())(implicit codec: Codec): Map[String, File] = {
     if (file.exists() && !touchedFiles.contains(file.getAbsolutePath)) {
       val contents = Source.fromFile(file).mkString
       val parseResult = HandlebarsGrammar(contents)
@@ -55,7 +56,7 @@ object PartialHelper extends ProgramHelper {
           val partialNameStr = partial.name.value.asInstanceOf[Identifier].parts.mkString("/")
           val partialFile = new File("%s/%s.handlebars".format(file.getParent, partialNameStr))
 
-          result ++ Map(partialNameStr -> partialFile) ++ findAllPartials(partialFile, touchedFiles :+ file.getAbsolutePath)
+          result ++ Map(partialNameStr -> partialFile) ++ findAllPartials(partialFile, touchedFiles :+ file.getAbsolutePath)(codec)
         }
       }.getOrElse(sys.error("Could not parse template:\n\n%s".format(parseResult.toString)))
     } else {
