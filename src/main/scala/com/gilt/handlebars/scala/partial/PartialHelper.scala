@@ -47,11 +47,8 @@ object PartialHelper extends ProgramHelper {
    * @param touchedFiles running list of files that were scanned
    * @return Map of partialName -> java.io.File
    */
-  def findAllPartials(file: File, touchedFiles: Seq[String] = Seq()): Map[String, File] = {
+  def findAllPartials(file: File, touchedFiles: Seq[String] = Seq())(implicit codec: Codec): Map[String, File] = {
     if (file.exists() && !touchedFiles.contains(file.getAbsolutePath)) {
-      implicit val codec = Codec("UTF-8")
-      codec.onMalformedInput(CodingErrorAction.REPLACE)
-      codec.onUnmappableCharacter(CodingErrorAction.REPLACE)
       val contents = Source.fromFile(file).mkString
       val parseResult = HandlebarsGrammar(contents)
       parseResult.map { program =>
@@ -59,7 +56,7 @@ object PartialHelper extends ProgramHelper {
           val partialNameStr = partial.name.value.asInstanceOf[Identifier].parts.mkString("/")
           val partialFile = new File("%s/%s.handlebars".format(file.getParent, partialNameStr))
 
-          result ++ Map(partialNameStr -> partialFile) ++ findAllPartials(partialFile, touchedFiles :+ file.getAbsolutePath)
+          result ++ Map(partialNameStr -> partialFile) ++ findAllPartials(partialFile, touchedFiles :+ file.getAbsolutePath)(codec)
         }
       }.getOrElse(sys.error("Could not parse template:\n\n%s".format(parseResult.toString)))
     } else {
