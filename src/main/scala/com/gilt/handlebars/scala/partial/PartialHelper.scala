@@ -1,12 +1,13 @@
 package com.gilt.handlebars.scala.partial
 
 import java.io.File
+import java.nio.charset.CodingErrorAction
 
 import com.gilt.handlebars.scala.binding.BindingFactory
 import com.gilt.handlebars.scala.parser._
 import com.gilt.handlebars.scala.{Handlebars, HandlebarsImpl}
 
-import scala.io.Source
+import scala.io.{Codec, Source}
 
 /**
  * @author chicks
@@ -48,6 +49,9 @@ object PartialHelper extends ProgramHelper {
    */
   def findAllPartials(file: File, touchedFiles: Seq[String] = Seq()): Map[String, File] = {
     if (file.exists() && !touchedFiles.contains(file.getAbsolutePath)) {
+      implicit val codec = Codec("UTF-8")
+      codec.onMalformedInput(CodingErrorAction.REPLACE)
+      codec.onUnmappableCharacter(CodingErrorAction.REPLACE)
       val contents = Source.fromFile(file).mkString
       val parseResult = HandlebarsGrammar(contents)
       parseResult.map { program =>

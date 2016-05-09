@@ -1,7 +1,9 @@
 package com.gilt.handlebars.scala.parser
 
 import java.io.File
-import scala.io.Source
+import java.nio.charset.CodingErrorAction
+
+import scala.io.{Codec, Source}
 
 class TemplateNotFoundException(message: String) extends RuntimeException(message)
 
@@ -21,6 +23,9 @@ ${next}
 
   def programFromFile(file: File): Program = {
     if (file.exists()) {
+      implicit val codec = Codec("UTF-8")
+      codec.onMalformedInput(CodingErrorAction.REPLACE)
+      codec.onUnmappableCharacter(CodingErrorAction.REPLACE)
       val parseResult = HandlebarsGrammar(Source.fromFile(file).mkString)
       parseResult.getOrElse(sys.error("Could not parse template:\n\n%s".format(parseResult.toString)))
     } else {
