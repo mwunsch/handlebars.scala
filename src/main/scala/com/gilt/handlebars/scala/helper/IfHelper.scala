@@ -8,6 +8,7 @@ class IfHelper[T](inverse: Boolean = false) extends Helper[T] with Loggable {
     if (options.argument(0).isTruthy == !inverse)
       options.visit(binding)
     else
-      options.inverse(binding)
+      if (options.hasInverse) options.inverse(binding)
+      else ""
   }
 }
