@@ -3,6 +3,7 @@ package com.gilt.handlebars.scala
 import java.io.File
 
 import com.gilt.handlebars.scala.binding.{Binding, BindingFactory}
+import com.gilt.handlebars.scala.context.Context
 import com.gilt.handlebars.scala.helper.Helper
 import com.gilt.handlebars.scala.parser.{HandlebarsGrammar, Program}
 import com.gilt.handlebars.scala.partial.PartialHelper
@@ -62,4 +63,10 @@ case class CachingHandlebarsImpl[T](
      data: Map[String, Binding[T]] = Map.empty[String, Binding[T]],
      partials: Map[String, Handlebars[T]] = Map.empty[String, Handlebars[T]],
      helpers: Map[String, Helper[T]] = Map.empty[String, Helper[T]])(implicit c: BindingFactory[T]): String = "" // Call to HandlebarsVisitor
+
+  def c(
+     context: Context[T],
+     data: Map[String, Binding[T]],
+     partials: Map[String, Handlebars[T]],
+     helpers: Map[String, Helper[T]])(implicit c: BindingFactory[T]): String = "" // Call to HandlebarsVisitor
 }

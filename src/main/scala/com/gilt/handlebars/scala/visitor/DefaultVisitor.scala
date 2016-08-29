@@ -133,7 +133,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
 
     val partialContext = partial.context.map(context.lookup(_)).getOrElse(context)
     partials.get(partialName).map {
-      _(partialContext.binding, data, partials, helpers) // TODO - partial rendering should receive a context
+      _.c(partialContext, data, partials, helpers)
     }.getOrElse {
       warn(s"Could not find partial: $partialName")
       ""
