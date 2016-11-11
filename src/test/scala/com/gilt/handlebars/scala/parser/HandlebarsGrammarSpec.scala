@@ -372,6 +372,16 @@ class HandlebarsGrammarSpec extends FunSpec with Matchers with ParserMatchers {
       }
     }
 
+    it("parses block with block params") {
+      parsers("{{#foo as |bar baz|}}content{{/foo}}") should succeedWithResult {
+        Program(List(
+          Block(
+            Mustache(Identifier(List("foo")), blockParams=BlockParams(List("bar", "baz"))),
+            Program(List(Content("content"))),
+            None)))
+      }
+    }
+
     it("is unsuccessful if there's a Parse error") {
       // The reference implementation raises an exception on a parse failure,
       // but I prefer to use the Parsing lib's solution of a NoSuccess.

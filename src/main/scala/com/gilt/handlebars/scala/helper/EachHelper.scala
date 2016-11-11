@@ -11,14 +11,20 @@ class EachHelper[T] extends Helper[T] {
           options.visit(value,
             Map(
               "key" -> contextFactory.bindPrimitive(key),
-              "index" -> contextFactory.bindPrimitive(idx)))
+              "index" -> contextFactory.bindPrimitive(idx)),
+            List(
+              value,
+              contextFactory.bindPrimitive(key)))
       }.mkString
     else if (arg0.isCollection)
       arg0.asCollection.zipWithIndex.map {
         case (value, idx) =>
           options.visit(value,
-            Map(
-              "index" -> contextFactory.bindPrimitive(idx)))
+            Map[String, Binding[T]](
+              "index" -> contextFactory.bindPrimitive(idx)),
+            List[Binding[T]](
+              value,
+              contextFactory.bindPrimitive(idx)))
       }.mkString
 
     else {

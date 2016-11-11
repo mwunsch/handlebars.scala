@@ -36,7 +36,7 @@ class HandlebarsImpl[T](
     providedPartials: Map[String, Handlebars[T]] = Map.empty[String, Handlebars[T]],
     providedHelpers: Map[String, Helper[T]] = Map.empty[String, Helper[T]])(implicit c: BindingFactory[T]): String = {
 
-    DefaultVisitor(Context(binding), PartialHelper.normalizePartialNames(partials ++ providedPartials), helpers ++ providedHelpers, data).visit(program)
+    DefaultVisitor(Context(binding), PartialHelper.normalizePartialNames(partials ++ providedPartials), helpers ++ providedHelpers, data, Map.empty[String, Binding[T]]).visit(program)
   }
 }
 

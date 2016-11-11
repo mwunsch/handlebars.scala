@@ -17,10 +17,9 @@ class WithHelper[T] extends Helper[T] with Loggable {
   def apply(binding: Binding[T], options: HelperOptions[T])(implicit c: BindingFactory[T]): String = {
     val arg = options.argument(0)
     if (!arg.isDefined) {
-      warn("No context provided for with helper")
-      ""
+      options.inverse(binding)
     } else {
-      options.visit(arg)
+      options.visit(arg, blockParamsBinding=List(arg))
     }
   }
 }
