@@ -31,6 +31,18 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       Handlebars(template).apply(ctx) should equal("Alan Johnson")
     }
 
+    it("with with else") {
+      val template = "{{#with person}}Person is present{{else}}Person is not present{{/with}}"
+      Handlebars(template).apply(new {}) should equal("Person is not present")
+    }
+
+    it("with provides block parameter") {
+      case class Person(first: String, last: String)
+      case class Ctx(person: Person)
+      val template = "{{#with person as |foo|}}{{foo.first}} {{last}}{{/with}}"
+      Handlebars(template).apply(Ctx(Person("Alan", "Johnson"))) should equal("Alan Johnson")
+    }
+
     it("if") {
       case class Goodbye(goodbye: Any, world: String)
       case class World(world: String)
@@ -82,6 +94,14 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       val template = "{{#each goodbyes}}{{@index}}. {{text}}! {{/each}}cruel {{world}}!"
       val ctx = Ctx(Iterable(Text("goodbye"), Text("Goodbye"), Text("GOODBYE")), "world")
       Handlebars(template).apply(ctx) should equal("0. goodbye! 1. Goodbye! 2. GOODBYE! cruel world!")
+    }
+
+    it("each with block params") {
+      val template = "{{#each goodbyes as |value index|}}{{index}}. {{value.text}}! {{#each ../goodbyes as |childValue childIndex|}} {{index}} {{childIndex}}{{/each}} After {{index}} {{/each}}{{index}}cruel {{world}}!"
+      val ctx = Map("goodbyes" -> List(Map("text" -> "goodbye"), Map("text" -> "Goodbye")), "world" -> "world")
+      val result = Handlebars(template).apply(ctx)
+
+      result should equal("0. goodbye!  0 0 0 1 After 0 1. Goodbye!  1 0 1 1 After 1 cruel world!")
     }
 
     it("data passed to helpers") {
@@ -393,6 +413,75 @@ class BuiltInHelperSpec extends FunSpec with Matchers {
       )
       val builder = Handlebars.createBuilder(template).withHelpers(helpers)
       builder.build(Ctx("goodbye", "world")) should equal("GOODBYE cruel WORLD goodbye")
+    }
+
+    describe("block params") {
+      it("should take presedence over context values") {
+        case class Ctx(value: String)
+        val template = "{{#goodbyes as |value|}}{{value}}{{/goodbyes}}{{value}}"
+        val helpers = Map(
+          "goodbyes" -> Helper[Any] {
+            (_, options) => {
+              options.visit(Map("value" -> "bar"), blockParamsBinding=List(1, 2))
+            }
+          }
+        )
+        val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+        builder.build(Ctx("foo")) should equal("1foo")
+      }
+
+      it("should take precedence over helper values") {
+        val template = "{{#goodbyes as |value|}}{{value}}{{/goodbyes}}{{value}}"
+        val helpers = Map(
+          "value" -> Helper[Any] {
+            (_, _) => "foo"
+          },
+          "goodbyes" -> Helper[Any] {
+            (_, options) => {
+              options.visit(Map(), blockParamsBinding=List(1, 2))
+            }
+          }
+        )
+        val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+        builder.build(new {}) should equal("1foo")
+      }
+
+      it("should not take precedence over pathed values") {
+        case class Ctx(value: String)
+        val template = "{{#goodbyes as |value|}}{{./value}}{{/goodbyes}}{{value}}"
+        val helpers = Map(
+          "value" -> Helper[Any] {
+            (_, _) => "foo"
+          },
+          "goodbyes" -> Helper[Any] {
+            (context, options) => {
+              options.visit(context, blockParamsBinding=List(1, 2))
+            }
+          }
+        )
+        val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+        builder.build(Ctx("bar")) should equal("barfoo")
+      }
+
+      it("should take precedence over parent block params") {
+        case class Ctx(value: String)
+        var value = 1
+        val template = "{{#goodbyes as |value|}}{{#goodbyes}}{{value}}{{#goodbyes as |value|}}{{value}}{{/goodbyes}}{{/goodbyes}}{{/goodbyes}}{{value}}"
+        val helpers = Map(
+          "goodbyes" -> Helper[Any] {
+            (_, options) => {
+              options.visit(
+                Map("value" -> "bar"),
+                blockParamsBinding=(if (options.blockParams.length == 1) {
+                  value += 2
+                  List(value - 2, value - 1)
+                } else Nil))
+            }
+          }
+        )
+        val builder = Handlebars.createBuilder(template).withHelpers(helpers)
+        builder.build(Ctx("foo")) should equal("13foo")
+      }
     }
 
     it("helpers can take a nested helper") {

@@ -20,9 +20,24 @@ case class Program(statements: Seq[Node], inverse: Option[Program] = None) exten
 case class Mustache(path: IdentifierNode,
     params: Seq[Either[Mustache, ValueNode]] = Nil,
     hash: HashNode = HashNode(Map.empty),
+    blockParams: BlockParams=BlockParams(),
     unescaped: Boolean = false) extends Node {
   val eligibleHelper: Boolean = path.isSimple
   val isHelper: Boolean = eligibleHelper && params.nonEmpty
+}
+
+object Mustache {
+  def apply(
+      path: IdentifierNode,
+      params: Seq[Either[Mustache, ValueNode]],
+      hash: Option[HashNode],
+      blockParams: Option[BlockParams],
+      unescaped: Boolean): Mustache = Mustache(
+    path,
+    params,
+    hash.getOrElse(HashNode(Map.empty)),
+    blockParams.getOrElse(BlockParams()),
+    unescaped)
 }
 
 case class Partial(name: PartialName, context: Option[Identifier] = None) extends Node
@@ -65,3 +80,6 @@ case class Comment(value: String) extends ValueNode {
   type T = String
 }
 
+case class BlockParams(value: List[String]=List()) extends ValueNode {
+  type T = List[String]
+}

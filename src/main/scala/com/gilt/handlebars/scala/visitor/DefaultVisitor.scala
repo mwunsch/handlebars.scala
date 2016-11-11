@@ -8,8 +8,13 @@ import com.gilt.handlebars.scala.logging.Loggable
 import com.gilt.handlebars.scala.parser._
 
 object DefaultVisitor {
-  def apply[T](base: Context[T], partials: Map[String, Handlebars[T]], helpers: Map[String, Helper[T]], data: Map[String, Binding[T]])(implicit bindingFactory: BindingFactory[T]) = {
-    new DefaultVisitor(base, partials, helpers, data)
+  def apply[T](
+      base: Context[T],
+      partials: Map[String, Handlebars[T]],
+      helpers: Map[String, Helper[T]],
+      data: Map[String, Binding[T]],
+      blockParamsBinding: Map[String, Binding[T]])(implicit bindingFactory: BindingFactory[T]) = {
+    new DefaultVisitor(base, partials, helpers, data, blockParamsBinding)
   }
 
   private val escChars = "<>\"&"
@@ -36,7 +41,13 @@ object DefaultVisitor {
   }
 }
 
-class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]], helpers: Map[String, Helper[T]], data: Map[String, Binding[T]])(implicit val contextFactory: BindingFactory[T]) extends Visitor with Loggable {
+class DefaultVisitor[T](
+    context: Context[T],
+    partials: Map[String, Handlebars[T]],
+    helpers: Map[String, Helper[T]],
+    data: Map[String, Binding[T]],
+    blockParamsBinding: Map[String, Binding[T]])(implicit val contextFactory: BindingFactory[T]) extends Visitor with Loggable {
+
   def visit(node: Node): String = {
     node match {
       case c: Content => visit(c)
@@ -61,26 +72,29 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
 
   def visit(mustache: Mustache): String = {
     // I. There is no hash present on this {{mustache}}
-
     lazy val paramsList = mustache.params.map{
       case Left(n: Mustache) => contextFactory.bindPrimitive(visit(n))
       case Right(valueNode) => valueNodeToBindings(valueNode)
     }.toList
 
+
     lazy val paramsMap = valueHashToBindingMap(mustache.hash)
 
     if (mustache.hash.value.isEmpty) {
-      // 1. Check if path refers to a helper
-      val value = helpers.get(mustache.path.string).map {
-        callHelper(_, mustache, paramsList)
+      // 1. Check if path refers to blockParams
+      val value = Binding.mapTraverse(mustache.path.value, blockParamsBinding).asOption.map(_.render).orElse {
+        // 2. Check if path refers to a helper
+        helpers.get(mustache.path.string).map {
+          callHelper(_, mustache, paramsList, mustache.blockParams)
+        }
       }.orElse {
-        // 2. Check if path exists directly in the context
+        // 3. Check if path exists directly in the context
         context.lookup(mustache.path, paramsList).asOption.map(_.render)
       }.orElse {
-        // 3. Check if path refers to provided data.
+        // 4. Check if path refers to provided data.
         data.get(mustache.path.string).map(_.render)
       }.getOrElse {
-        // 4. Could not find path in context, helpers or data.
+        // 5. Could not find path in context, helpers or data.
         warn(s"Could not find path or helper: ${mustache.path}, context: $context")
         ""
       }
@@ -89,7 +103,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
     } else {
       // II. There is a hash on this {{mustache}}. Start over with the hash information added to 'data'. All of the
       //     data in the hash will be accessible to any child nodes of this {{mustache}}.
-      new DefaultVisitor(context, partials, helpers, data ++ paramsMap).visit(mustache.copy(hash = HashNode(Map.empty)))
+      new DefaultVisitor(context, partials, helpers, data ++ paramsMap, blockParamsBinding).visit(mustache.copy(hash = HashNode(Map.empty)))
     }
   }
 
@@ -106,7 +120,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
       val lookedUpCtx = context.lookup(block.mustache.path)
       // 1. Check if path refers to a helper
       helpers.get(block.mustache.path.string).map {
-        callHelper(_, block.program, paramsList)
+        callHelper(_, block.program, paramsList, block.mustache.blockParams)
       }.orElse {
         // 2. Check if path exists directly in the context
         lookedUpCtx.asOption.map {
@@ -120,8 +134,8 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
     } else {
       // II. There is a hash on this block. Start over with the hash information added to 'data'. All of the
       //     data in the hash will be accessible to any child nodes of this block.
-      def blockWithoutHash = block.copy(mustache = block.mustache.copy(hash = HashNode(Map.empty)))
-      new DefaultVisitor(context, partials, helpers, data ++ paramsMap).visit(blockWithoutHash)
+      def blockWithoutHash = block.copy(mustache = block.mustache.copy(hash=HashNode(Map.empty)))
+      new DefaultVisitor(context, partials, helpers, data ++ paramsMap, blockParamsBinding).visit(blockWithoutHash)
     }
   }
 
@@ -174,15 +188,23 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
   protected def renderBlock(ctx: Context[T], program: Program, inverse: Option[Program]): String = {
     if (ctx.truthValue) {
       ctx.map { (itemContext, idx) =>
-        new DefaultVisitor(itemContext, partials, helpers, data ++ (idx.map { "index" -> contextFactory.bindPrimitive(_) })).visit(program)
+        new DefaultVisitor(itemContext, partials, helpers, data ++ (idx.map { "index" -> contextFactory.bindPrimitive(_) }), blockParamsBinding).visit(program)
       }.mkString
     } else {
       inverse.map(visit).getOrElse("")
     }
   }
 
-  protected def callHelper(helper: Helper[T], program: Node, params: Seq[Binding[T]]): String = {
-    def optionsBuilder = new HelperOptionsBuilder[T](context, partials, helpers, data, program, params)
+  protected def callHelper(helper: Helper[T], program: Node, params: Seq[Binding[T]], blockParams: BlockParams): String = {
+    def optionsBuilder = new HelperOptionsBuilder[T](
+      context,
+      partials,
+      helpers,
+      data,
+      program,
+      params,
+      blockParams.value,
+      blockParamsBinding)
     helper.apply(context.binding, optionsBuilder.build)
   }
 }

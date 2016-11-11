@@ -50,18 +50,18 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
   def inverseBlock = blockify("^") ^^ {
       case (stache, Some(prog)) => Block(stache, prog.inverse.getOrElse(Program(Nil)), Some(prog))
-      case (stache, None) => Block(stache, Program(Nil), None)
+      case (stache, None) => Block(stache, Program(Nil))
     }
 
   def block = blockify("#") ^^ {
       case (stache, Some(prog)) => Block(stache, prog, prog.inverse)
-      case (stache, None) => Block(stache, Program(Nil), None)
+      case (stache, None) => Block(stache, Program(Nil))
     }
 
   def mustache: Parser[Mustache] = {
     mustachify(pad(inMustache)) ^^ { mustacheable(_) } |
-    mustachify("&" ~> pad(inMustache)) ^^ { mustacheable(_, true) } |
-    mustachify("{" ~> pad(inMustache) <~ "}") ^^ { mustacheable(_, true) }
+    mustachify("&" ~> pad(inMustache)) ^^ { mustacheable(_, unescape=true) } |
+    mustachify("{" ~> pad(inMustache) <~ "}") ^^ { mustacheable(_, unescape=true) }
   }
 
   def partial: Parser[Partial] = mustachify(">" ~> pad( partialName ~ opt(whiteSpace ~> path) )) ^^ {
@@ -69,28 +69,26 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
   }
 
   def inMustache: Parser[(IdentifierNode, List[Either[Mustache, ValueNode]], Option[HashNode])] = {
-    path ~ params ~ hash ^^ {
-      case (id ~ params ~ hash) => (id, params, Some(hash))
+    path ~ opt(params) ~ opt(hash) ^^ {
+      case (id ~ params ~ hash) =>
+        (id, params.getOrElse(Nil), hash)
     } |
-    path ~ hash ^^ {
-      case (id ~ hash) => (id, Nil, Some(hash))
-    } |
-    path ~ params ^^ {
-      case (id ~ params) => (id, params, None)
-    } |
-    path ^^ { (_ , Nil, None) } |
     dataName ^^ { (_ , Nil, None) } |
     failure("Invalid Mustache")
   }
 
-  def params = rep1(whiteSpace ~> paramOrNested)
+  def params = rep1(whiteSpace ~> not(AS) ~> paramOrNested)
+
+  def blockParams: Parser[BlockParams] = pad(AS ~> "|" ~> opt(whiteSpace) ~> rep1(ID <~ opt(whiteSpace)) <~ "|") ^^ {
+    BlockParams(_)
+  }
 
   def hash = rep1(whiteSpace ~> hashSegment) ^^ {
     pairs:List[(String, ValueNode)] => HashNode(pairs.toMap)
   }
 
   def hashSegment = (ID ~ EQUALS ~ param) ^^ {
-    case (i ~ _ ~ p) => Pair(i, p)
+    case (i ~ _ ~ p) => (i, p)
   }
 
   def partialName = (path | STRING | INTEGER) ^^ { PartialName(_) }
@@ -115,7 +113,7 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
   def comment = mustachify("!" ~> CONTENT) ^^ { Comment(_) }
 
-  def blockify(prefix: Parser[String]): Parser[Pair[Mustache, Option[Program]]] = {
+  def blockify(prefix: Parser[String]): Parser[(Mustache, Option[Program])] = {
     blockstache(prefix) ~ opt(program) ~ mustachify("/" ~> pad(path)) >> {
       case (mustache ~ _ ~ close) if close != mustache.path => failure(mustache.path.string + " doesn't match " +
 close.string)
@@ -123,16 +121,15 @@ close.string)
     }
   }
 
-  def blockstache(prefix: Parser[String]) = mustachify(prefix ~> pad(inMustache)) ^^ {
-    mustacheable(_)
+  def blockstache(prefix: Parser[String]): Parser[Mustache] = mustachify(prefix ~> pad(inMustache) ~ opt(blockParams)) ^^ {
+    case tuple ~ blockParams => mustacheable(tuple, blockParams)
   }
 
-  def mustacheable(tuple: (IdentifierNode, List[Either[Mustache, ValueNode]], Option[HashNode]),
-    unescape: Boolean = false): Mustache = {
-      tuple match {
-        case (id, params, Some(hash)) => Mustache(id, params, hash, unescape)
-        case (id, params, None) => Mustache(id, params, unescaped = unescape)
-      }
+  def mustacheable(
+      tuple: (IdentifierNode, List[Either[Mustache, ValueNode]], Option[HashNode]),
+      blockParams: Option[BlockParams]=None,
+      unescape: Boolean=false): Mustache = tuple match {
+    case (id, params, hash) => Mustache(id, params, hash, blockParams, unescape)
   }
 
   def mustachify[T](parser: Parser[T]): Parser[T] = OPEN ~> parser <~ CLOSE
@@ -150,7 +147,7 @@ close.string)
 
   val EQUALS = "="
 
-  val ID = """[^\s!"#%-,\.\/;->@\[-\^`\{-~]+""".r | ("[" ~> """[^\]]*""".r <~ "]") | ident
+  val ID = not(AS) ~> """[^\s!"#%-,\.\/;->@\[-\^`\{-~]+""".r | ("[" ~> """[^\]]*""".r <~ "]") | ident
 
   val SEPARATOR = "/" | "."
 
@@ -163,6 +160,8 @@ close.string)
   val CLOSE = delimiters._2
 
   val ESCAPE = "\\"
+
+  val AS = opt(whiteSpace) ~ "as" ~ whiteSpace
 
   val CONTENT = rep1((ESCAPE ~> (OPEN | CLOSE) | not(OPEN | CLOSE) ~> ".|\r|\n".r)) ^^ { t => t.mkString("") }
 }
