@@ -53,6 +53,12 @@ case class CachingHandlebarsImpl[T](
    helpers: Map[String, Helper[T]],
    sourceFile: Option[String])(implicit f: BindingFactory[T]) extends CachingHandlebars[T] {
 
+  override def renderStrict(
+     binding: Binding[T],
+     data: Map[String, Binding[T]],
+     providedPartials: Map[String, Handlebars[T]],
+     providedHelpers: Map[String, Helper[T]])(implicit c: BindingFactory[T]): Either[List[String], String] = Right("") // Call to HandlebarsVisitor
+
   // TODO: Warn if we getOrElse is called. Didn't know how to re-load files.
   // TODO: Use handlebars builder to construct the new instance?
   def reload = sourceFile.map(file => CachingHandlebars.apply(new File(file))).getOrElse(this)
