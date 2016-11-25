@@ -90,7 +90,7 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
   }
 
   def hashSegment = (ID ~ EQUALS ~ param) ^^ {
-    case (i ~ _ ~ p) => Pair(i, p)
+    case (i ~ _ ~ p) => (i, p)
   }
 
   def partialName = (path | STRING | INTEGER) ^^ { PartialName(_) }
@@ -115,7 +115,7 @@ class HandlebarsGrammar(delimiters: (String, String)) extends JavaTokenParsers {
 
   def comment = mustachify("!" ~> CONTENT) ^^ { Comment(_) }
 
-  def blockify(prefix: Parser[String]): Parser[Pair[Mustache, Option[Program]]] = {
+  def blockify(prefix: Parser[String]): Parser[(Mustache, Option[Program])] = {
     blockstache(prefix) ~ opt(program) ~ mustachify("/" ~> pad(path)) >> {
       case (mustache ~ _ ~ close) if close != mustache.path => failure(mustache.path.string + " doesn't match " +
 close.string)

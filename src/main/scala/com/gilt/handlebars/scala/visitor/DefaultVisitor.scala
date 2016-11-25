@@ -1,15 +1,16 @@
 package com.gilt.handlebars.scala.visitor
 
 import com.gilt.handlebars.scala.Handlebars
-import com.gilt.handlebars.scala.binding.{ Binding, BindingFactory }
+import com.gilt.handlebars.scala.binding.{Binding, BindingFactory}
 import com.gilt.handlebars.scala.context.Context
-import com.gilt.handlebars.scala.helper.{ Helper, HelperOptionsBuilder }
-import com.gilt.handlebars.scala.logging.Loggable
+import com.gilt.handlebars.scala.helper.{Helper, HelperOptionsBuilder}
+import com.gilt.handlebars.scala.logging.AccumulatingLoggable
 import com.gilt.handlebars.scala.parser._
+import scala.collection.mutable
 
 object DefaultVisitor {
-  def apply[T](base: Context[T], partials: Map[String, Handlebars[T]], helpers: Map[String, Helper[T]], data: Map[String, Binding[T]])(implicit bindingFactory: BindingFactory[T]) = {
-    new DefaultVisitor(base, partials, helpers, data)
+  def apply[T](base: Context[T], partials: Map[String, Handlebars[T]], helpers: Map[String, Helper[T]], data: Map[String, Binding[T]], errors: Option[mutable.MutableList[String]] = None)(implicit bindingFactory: BindingFactory[T]) = {
+    new DefaultVisitor(base, partials, helpers, data, errors)
   }
 
   private val escChars = "<>\"&"
@@ -36,7 +37,8 @@ object DefaultVisitor {
   }
 }
 
-class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]], helpers: Map[String, Helper[T]], data: Map[String, Binding[T]])(implicit val contextFactory: BindingFactory[T]) extends Visitor with Loggable {
+class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]], helpers: Map[String, Helper[T]], data: Map[String, Binding[T]], protected val errors: Option[mutable.MutableList[String]] = None)(implicit val contextFactory: BindingFactory[T]) extends Visitor with AccumulatingLoggable {
+
   def visit(node: Node): String = {
     node match {
       case c: Content => visit(c)
@@ -89,7 +91,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
     } else {
       // II. There is a hash on this {{mustache}}. Start over with the hash information added to 'data'. All of the
       //     data in the hash will be accessible to any child nodes of this {{mustache}}.
-      new DefaultVisitor(context, partials, helpers, data ++ paramsMap).visit(mustache.copy(hash = HashNode(Map.empty)))
+      new DefaultVisitor(context, partials, helpers, data ++ paramsMap, errors).visit(mustache.copy(hash = HashNode(Map.empty)))
     }
   }
 
@@ -121,7 +123,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
       // II. There is a hash on this block. Start over with the hash information added to 'data'. All of the
       //     data in the hash will be accessible to any child nodes of this block.
       def blockWithoutHash = block.copy(mustache = block.mustache.copy(hash = HashNode(Map.empty)))
-      new DefaultVisitor(context, partials, helpers, data ++ paramsMap).visit(blockWithoutHash)
+      new DefaultVisitor(context, partials, helpers, data ++ paramsMap, errors).visit(blockWithoutHash)
     }
   }
 
@@ -174,7 +176,7 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
   protected def renderBlock(ctx: Context[T], program: Program, inverse: Option[Program]): String = {
     if (ctx.truthValue) {
       ctx.map { (itemContext, idx) =>
-        new DefaultVisitor(itemContext, partials, helpers, data ++ (idx.map { "index" -> contextFactory.bindPrimitive(_) })).visit(program)
+        new DefaultVisitor(itemContext, partials, helpers, data ++ (idx.map { "index" -> contextFactory.bindPrimitive(_) }), errors).visit(program)
       }.mkString
     } else {
       inverse.map(visit).getOrElse("")
@@ -185,4 +187,6 @@ class DefaultVisitor[T](context: Context[T], partials: Map[String, Handlebars[T]
     def optionsBuilder = new HelperOptionsBuilder[T](context, partials, helpers, data, program, params)
     helper.apply(context.binding, optionsBuilder.build)
   }
+
+  def getAccumulatedErrors: Option[List[String]] = errors.map(_.toList)
 }
