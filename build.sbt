@@ -2,7 +2,7 @@ def scala211Dependencies(scalaVersion:String) = {
   CrossVersion.partialVersion(scalaVersion) match {
     case Some((2, scalaMajor)) if scalaMajor >= 11 =>
       Seq(
-        "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1")
+        "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5")
     case _ =>
       Seq()
   }
@@ -11,21 +11,20 @@ def scala211Dependencies(scalaVersion:String) = {
 val updateVersion = taskKey[Unit]("Updates version in README")
 libraryDependencies ++= Seq(
   "org.slf4j" % "slf4j-api" % "1.6.4",
-  "org.slf4j" % "slf4j-simple" % "1.6.4" % "test",
-  "org.scalatest" %% "scalatest" % "2.1.6" % "test"
+  "org.slf4j" % "slf4j-simple" % "1.6.4" % "test"
 ) ++ scala211Dependencies(scalaVersion.value)
 
 val commonSettings = Seq(
   organization := "com.gilt",
 
-  scalaVersion := "2.11.7",
+  scalaVersion := "2.12.1",
 
-  crossScalaVersions := Seq("2.11.7", "2.10.5"),
+  crossScalaVersions := Seq(scalaVersion.value, "2.11.8", "2.10.6"),
 
   libraryDependencies ++= Seq(
     "org.slf4j" % "slf4j-api" % "1.6.4",
     "org.slf4j" % "slf4j-simple" % "1.6.4" % "test",
-    "org.scalatest" %% "scalatest" % "2.2.4" % "test"
+    "org.scalatest" %% "scalatest" % "3.0.1" % "test"
   ) ++ scala211Dependencies(scalaVersion.value),
 
   updateVersion := {
