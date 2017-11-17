@@ -15,6 +15,9 @@ trait HelperOptions[T] {
    */
   def argument(index: Int): Binding[T]
 
+  /** @return A sequence of all arguments provided to the helper. */
+  def arguments: Seq[Binding[T]]
+
   /**
    * Retrieve data provided to the Handlebars template by its key.
    * @param key the key in the map of data provided to Handlebars.apply
@@ -86,6 +89,8 @@ class HelperOptionsBuilder[T](context: Context[T],
     def argument(index: Int): Binding[T] = {
       args.lift(index) getOrElse VoidBinding[T]
     }
+
+    def arguments: Seq[Binding[T]] = args
 
     def data(key: String): Binding[T] = {
       dataMap.get(key).getOrElse(VoidBinding[T])
