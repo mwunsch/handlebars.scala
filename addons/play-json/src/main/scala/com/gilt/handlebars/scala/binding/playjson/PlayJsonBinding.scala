@@ -25,6 +25,7 @@ class PlayJsonBinding(val data: JsValue) extends FullBinding[JsValue] with Logga
     case JsBoolean(t)   => t
     case JsString(s)    => s != ""
     case JsNumber(n)    => n != 0
+    case JsArray(seq)   => seq.nonEmpty
     case JsNull         => false
     case _ => true
   }
