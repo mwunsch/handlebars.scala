@@ -2,7 +2,7 @@ def scala211Dependencies(scalaVersion:String) = {
   CrossVersion.partialVersion(scalaVersion) match {
     case Some((2, scalaMajor)) if scalaMajor >= 11 =>
       Seq(
-        "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1")
+        "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.7")
     case _ =>
       Seq()
   }
@@ -12,20 +12,21 @@ val updateVersion = taskKey[Unit]("Updates version in README")
 libraryDependencies ++= Seq(
   "org.slf4j" % "slf4j-api" % "1.6.4",
   "org.slf4j" % "slf4j-simple" % "1.6.4" % "test",
-  "org.scalatest" %% "scalatest" % "2.1.6" % "test"
+  "org.scalatest" %% "scalatest" % "3.0.5" % "test"
 ) ++ scala211Dependencies(scalaVersion.value)
 
 val commonSettings = Seq(
   organization := "com.gilt",
 
-  scalaVersion := "2.11.7",
+  // scalaVersion := "2.11.7",
+  scalaVersion := "2.12.4",
 
-  crossScalaVersions := Seq("2.11.7", "2.10.5"),
+  crossScalaVersions := Seq("2.12.4", "2.11.7", "2.10.5"),
 
   libraryDependencies ++= Seq(
     "org.slf4j" % "slf4j-api" % "1.6.4",
     "org.slf4j" % "slf4j-simple" % "1.6.4" % "test",
-    "org.scalatest" %% "scalatest" % "2.2.4" % "test"
+    "org.scalatest" %% "scalatest" % "3.0.5" % "test"
   ) ++ scala211Dependencies(scalaVersion.value),
 
   updateVersion := {
@@ -51,6 +52,7 @@ val commonSettings = Seq(
 
   publishMavenStyle := true,
 
+  /* Disabling Sontatype publishing in my fork
   publishTo <<= version { (v: String) =>
     val nexus = "https://oss.sonatype.org/"
     if (v.trim.endsWith("SNAPSHOT"))
@@ -58,6 +60,7 @@ val commonSettings = Seq(
     else
       Some("releases"  at nexus + "/service/local/staging/deploy/maven2")
   },
+  */
 
   // For publishing / testing locally
   //publishTo := Some(Resolver.file("m2",  new File(Path.userHome.absolutePath+"/.m2/repository")))
