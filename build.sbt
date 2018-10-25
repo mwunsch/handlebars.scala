@@ -51,16 +51,16 @@ val commonSettings = Seq(
 
   publishMavenStyle := true,
 
-  publishTo <<= version { (v: String) =>
-    val nexus = "https://oss.sonatype.org/"
-    if (v.trim.endsWith("SNAPSHOT"))
-      Some("snapshots" at nexus + "content/repositories/snapshots")
-    else
-      Some("releases"  at nexus + "/service/local/staging/deploy/maven2")
-  },
+//  publishTo <<= version { (v: String) =>
+//    val nexus = "https://oss.sonatype.org/"
+//    if (v.trim.endsWith("SNAPSHOT"))
+//      Some("snapshots" at nexus + "content/repositories/snapshots")
+//    else
+//      Some("releases"  at nexus + "/service/local/staging/deploy/maven2")
+//  },
 
   // For publishing / testing locally
-  //publishTo := Some(Resolver.file("m2",  new File(Path.userHome.absolutePath+"/.m2/repository")))
+  publishTo := Some(Resolver.file("m2",  new File(Path.userHome.absolutePath+"/.m2/repository"))),
 
   publishArtifact in Test := false,
 
