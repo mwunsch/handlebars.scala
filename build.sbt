@@ -2,7 +2,7 @@ def scala211Dependencies(scalaVersion:String) = {
   CrossVersion.partialVersion(scalaVersion) match {
     case Some((2, scalaMajor)) if scalaMajor >= 11 =>
       Seq(
-        "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.7")
+        "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1")
     case _ =>
       Seq()
   }
@@ -12,21 +12,20 @@ val updateVersion = taskKey[Unit]("Updates version in README")
 libraryDependencies ++= Seq(
   "org.slf4j" % "slf4j-api" % "1.6.4",
   "org.slf4j" % "slf4j-simple" % "1.6.4" % "test",
-  "org.scalatest" %% "scalatest" % "3.0.5" % "test"
+  "org.scalatest" %% "scalatest" % "2.1.6" % "test"
 ) ++ scala211Dependencies(scalaVersion.value)
 
 val commonSettings = Seq(
   organization := "com.gilt",
 
-  // scalaVersion := "2.11.7",
-  scalaVersion := "2.12.4",
+  scalaVersion := "2.11.7",
 
-  crossScalaVersions := Seq("2.12.4", "2.11.7", "2.10.5"),
+  crossScalaVersions := Seq("2.11.7", "2.10.5"),
 
   libraryDependencies ++= Seq(
     "org.slf4j" % "slf4j-api" % "1.6.4",
     "org.slf4j" % "slf4j-simple" % "1.6.4" % "test",
-    "org.scalatest" %% "scalatest" % "3.0.5" % "test"
+    "org.scalatest" %% "scalatest" % "2.2.4" % "test"
   ) ++ scala211Dependencies(scalaVersion.value),
 
   updateVersion := {
@@ -51,19 +50,17 @@ val commonSettings = Seq(
   ),
 
   publishMavenStyle := true,
-
-  /* Disabling Sontatype publishing in my fork
-  publishTo <<= version { (v: String) =>
+// 2020Mar28 SBT 2 Update, we're not publishing
+/*  publishTo <<= version { (v: String) =>
     val nexus = "https://oss.sonatype.org/"
     if (v.trim.endsWith("SNAPSHOT"))
       Some("snapshots" at nexus + "content/repositories/snapshots")
     else
       Some("releases"  at nexus + "/service/local/staging/deploy/maven2")
   },
-  */
-
+*/
   // For publishing / testing locally
-  publishTo := Some(Resolver.file("m2",  new File(Path.userHome.absolutePath+"/.m2/repository"))),
+  //publishTo := Some(Resolver.file("m2",  new File(Path.userHome.absolutePath+"/.m2/repository")))
 
   publishArtifact in Test := false,
 
@@ -113,7 +110,7 @@ lazy val `play-json` = (project in file("./addons/play-json/")).
   settings(commonSettings: _*).
   settings(
     name := "handlebars-scala-play-json",
-    libraryDependencies += "com.typesafe.play" %% "play-json" % "2.6.9").
+    libraryDependencies += "com.typesafe.play" %% "play-json" % "2.5.4").
   dependsOn(core)
 
 lazy val `all` = (project in file("./addons/all")).
