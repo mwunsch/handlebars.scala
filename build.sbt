@@ -2,7 +2,7 @@ def scala211Dependencies(scalaVersion:String) = {
   CrossVersion.partialVersion(scalaVersion) match {
     case Some((2, scalaMajor)) if scalaMajor >= 11 =>
       Seq(
-        "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1")
+        "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2")
     case _ =>
       Seq()
   }
@@ -12,20 +12,21 @@ val updateVersion = taskKey[Unit]("Updates version in README")
 libraryDependencies ++= Seq(
   "org.slf4j" % "slf4j-api" % "1.6.4",
   "org.slf4j" % "slf4j-simple" % "1.6.4" % "test",
-  "org.scalatest" %% "scalatest" % "2.1.6" % "test"
+  "org.scalatest" %% "scalatest" % "3.1.1" % "test"
 ) ++ scala211Dependencies(scalaVersion.value)
 
 val commonSettings = Seq(
   organization := "com.gilt",
 
-  scalaVersion := "2.11.7",
+  scalaVersion := "2.12.11",
+  // scalaVersion := "2.11.7",
 
-  crossScalaVersions := Seq("2.11.7", "2.10.5"),
+  crossScalaVersions := Seq("2.12.11", "2.11.7", "2.10.5"),
 
   libraryDependencies ++= Seq(
     "org.slf4j" % "slf4j-api" % "1.6.4",
     "org.slf4j" % "slf4j-simple" % "1.6.4" % "test",
-    "org.scalatest" %% "scalatest" % "2.2.4" % "test"
+    "org.scalatest" %% "scalatest" % "3.1.1" % "test"
   ) ++ scala211Dependencies(scalaVersion.value),
 
   updateVersion := {
@@ -40,8 +41,8 @@ val commonSettings = Seq(
   },
 
   resolvers ++= Seq(
-    "Sonatype.org Snapshots" at "http://oss.sonatype.org/content/repositories/snapshots",
-    "Sonatype.org Releases" at "http://oss.sonatype.org/service/local/staging/deploy/maven2"
+    "Sonatype.org Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
+    "Sonatype.org Releases" at "https://oss.sonatype.org/service/local/staging/deploy/maven2"
   ),
 
   scalacOptions ++= Seq(
