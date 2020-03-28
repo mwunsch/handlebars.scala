@@ -111,7 +111,7 @@ lazy val `play-json` = (project in file("./addons/play-json/")).
   settings(commonSettings: _*).
   settings(
     name := "handlebars-scala-play-json",
-    libraryDependencies += "com.typesafe.play" %% "play-json" % "2.5.4").
+    libraryDependencies += "com.typesafe.play" %% "play-json" % "2.6.9").
   dependsOn(core)
 
 lazy val `all` = (project in file("./addons/all")).
