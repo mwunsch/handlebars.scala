@@ -1,3 +1,6 @@
+// Changelog
+// 2.2.0 - Update to sbt 1.6.2, play-json 2.8.2
+
 def scala211Dependencies(scalaVersion:String) = {
   CrossVersion.partialVersion(scalaVersion) match {
     case Some((2, scalaMajor)) if scalaMajor >= 11 =>
@@ -21,7 +24,7 @@ val commonSettings = Seq(
   scalaVersion := "2.12.11",
   // scalaVersion := "2.11.7",
 
-  crossScalaVersions := Seq("2.12.11", "2.11.7", "2.10.5"),
+  crossScalaVersions := Seq("2.12.17", "2.11.7", "2.10.5"),
 
   libraryDependencies ++= Seq(
     "org.slf4j" % "slf4j-api" % "1.6.4",
@@ -63,7 +66,7 @@ val commonSettings = Seq(
   // For publishing / testing locally
   //publishTo := Some(Resolver.file("m2",  new File(Path.userHome.absolutePath+"/.m2/repository")))
 
-  publishArtifact in Test := false,
+  Test / publishArtifact := false,
 
   pomIncludeRepository := { _ => false },
 
@@ -111,7 +114,7 @@ lazy val `play-json` = (project in file("./addons/play-json/")).
   settings(commonSettings: _*).
   settings(
     name := "handlebars-scala-play-json",
-    libraryDependencies += "com.typesafe.play" %% "play-json" % "2.6.9").
+    libraryDependencies += "com.typesafe.play" %% "play-json" % "2.8.2").
   dependsOn(core)
 
 lazy val `all` = (project in file("./addons/all")).

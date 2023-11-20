@@ -1,4 +1,5 @@
 .settings/
+.bsp/
 .classpath
 .project
 .cache
