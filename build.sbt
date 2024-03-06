@@ -1,8 +1,11 @@
+// Changelog
+// 2.2.0 - Update to sbt 1.6.2, play-json 2.8.2
+
 def scala211Dependencies(scalaVersion:String) = {
   CrossVersion.partialVersion(scalaVersion) match {
     case Some((2, scalaMajor)) if scalaMajor >= 11 =>
       Seq(
-        "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1")
+        "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2")
     case _ =>
       Seq()
   }
@@ -12,20 +15,21 @@ val updateVersion = taskKey[Unit]("Updates version in README")
 libraryDependencies ++= Seq(
   "org.slf4j" % "slf4j-api" % "1.6.4",
   "org.slf4j" % "slf4j-simple" % "1.6.4" % "test",
-  "org.scalatest" %% "scalatest" % "2.1.6" % "test"
+  "org.scalatest" %% "scalatest" % "3.1.1" % "test"
 ) ++ scala211Dependencies(scalaVersion.value)
 
 val commonSettings = Seq(
   organization := "com.gilt",
 
-  scalaVersion := "2.11.7",
+  scalaVersion := "2.12.11",
+  // scalaVersion := "2.11.7",
 
-  crossScalaVersions := Seq("2.11.7", "2.10.5"),
+  crossScalaVersions := Seq("2.12.17", "2.11.7", "2.10.5"),
 
   libraryDependencies ++= Seq(
     "org.slf4j" % "slf4j-api" % "1.6.4",
     "org.slf4j" % "slf4j-simple" % "1.6.4" % "test",
-    "org.scalatest" %% "scalatest" % "2.2.4" % "test"
+    "org.scalatest" %% "scalatest" % "3.1.1" % "test"
   ) ++ scala211Dependencies(scalaVersion.value),
 
   updateVersion := {
@@ -40,8 +44,8 @@ val commonSettings = Seq(
   },
 
   resolvers ++= Seq(
-    "Sonatype.org Snapshots" at "http://oss.sonatype.org/content/repositories/snapshots",
-    "Sonatype.org Releases" at "http://oss.sonatype.org/service/local/staging/deploy/maven2"
+    "Sonatype.org Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
+    "Sonatype.org Releases" at "https://oss.sonatype.org/service/local/staging/deploy/maven2"
   ),
 
   scalacOptions ++= Seq(
@@ -50,19 +54,19 @@ val commonSettings = Seq(
   ),
 
   publishMavenStyle := true,
-
-  publishTo <<= version { (v: String) =>
+// 2020Mar28 SBT 2 Update, we're not publishing
+/*  publishTo <<= version { (v: String) =>
     val nexus = "https://oss.sonatype.org/"
     if (v.trim.endsWith("SNAPSHOT"))
       Some("snapshots" at nexus + "content/repositories/snapshots")
     else
       Some("releases"  at nexus + "/service/local/staging/deploy/maven2")
   },
-
+*/
   // For publishing / testing locally
   //publishTo := Some(Resolver.file("m2",  new File(Path.userHome.absolutePath+"/.m2/repository")))
 
-  publishArtifact in Test := false,
+  Test / publishArtifact := false,
 
   pomIncludeRepository := { _ => false },
 
@@ -110,7 +114,7 @@ lazy val `play-json` = (project in file("./addons/play-json/")).
   settings(commonSettings: _*).
   settings(
     name := "handlebars-scala-play-json",
-    libraryDependencies += "com.typesafe.play" %% "play-json" % "2.5.4").
+    libraryDependencies += "com.typesafe.play" %% "play-json" % "2.8.2").
   dependsOn(core)
 
 lazy val `all` = (project in file("./addons/all")).

@@ -6,4 +6,7 @@ How to deploy:
 - `sbt all/updateVersion` (task will update the versions in `./README.md` and `addons/play-json/README.md`)
 - `sbt all/publish`
   - Or, `sbt core/publishSigned play-json/publishSigned`
+  - Or, `sbt all/publishLocal`
 - Commit, tag, push, etc.
+
+
